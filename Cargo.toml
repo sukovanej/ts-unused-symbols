@@ -1,0 +1,11 @@
+[package]
+name = "ts-unused-symbols"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+swc_common = "0.29.37"
+swc_ecma_ast = "0.100.1"
+swc_ecma_parser = { version = "0.130.2", features = ["typescript"] }
