@@ -2,12 +2,14 @@ mod analyze_package;
 mod analyzed_module;
 mod analyzer;
 mod module_symbols;
+mod find_unused_symbols;
 
 use std::path::PathBuf;
 
-use crate::analyze_package::analyze_package;
+use crate::{analyze_package::analyze_package, find_unused_symbols::find_unused_symbols};
 
 fn main() {
     let analyzed_package = analyze_package(PathBuf::from("example/src"));
-    println!("{}", analyzed_package.debug());
+    let unused_symbols = find_unused_symbols(&analyzed_package);
+    println!("{:#?}", unused_symbols);
 }

@@ -4,15 +4,15 @@ use swc_ecma_ast::Ident;
 
 #[derive(Debug, Clone, Default)]
 pub struct ModuleSymbols {
-    pub defined_symbols: HashSet<Ident>,
-    pub used_symbols: HashSet<Ident>,
-    pub exported_symbols: HashSet<Ident>,
+    pub defined_symbols: HashSet<String>,
+    pub used_symbols: HashSet<String>,
+    pub exported_symbols: HashSet<String>,
     pub imported_symbols: HashSet<ImportedSymbol>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ImportedSymbol {
-    pub symbols: Vec<Ident>,
+    pub symbols: Vec<String>,
     pub from: String,
 }
 
@@ -22,7 +22,7 @@ impl ImportedSymbol {
             .symbols
             .clone()
             .into_iter()
-            .map(|i| i.sym.to_string())
+            .map(|i| i.to_string())
             .collect();
 
         format!("{} ({})", symbols.join("\n"), self.from)
@@ -35,21 +35,21 @@ impl ModuleSymbols {
             .defined_symbols
             .clone()
             .into_iter()
-            .map(|i| i.sym.to_string())
+            .map(|i| i.to_string())
             .collect();
 
         let used_symbols: Vec<String> = self
             .used_symbols
             .clone()
             .into_iter()
-            .map(|i| i.sym.to_string())
+            .map(|i| i.to_string())
             .collect();
 
         let exported_symbols: Vec<String> = self
             .exported_symbols
             .clone()
             .into_iter()
-            .map(|i| i.sym.to_string())
+            .map(|i| i.to_string())
             .collect();
 
         let imported_symbols: Vec<String> = self
@@ -85,7 +85,7 @@ impl ModuleSymbols {
 
     pub fn new_defined_symbol(defined_symbol: Ident) -> ModuleSymbols {
         Self {
-            defined_symbols: HashSet::from([defined_symbol]),
+            defined_symbols: HashSet::from([defined_symbol.sym.to_string()]),
             ..Default::default()
         }
     }
@@ -99,7 +99,7 @@ impl ModuleSymbols {
 
     pub fn new_used_symbol(used_symbol: Ident) -> ModuleSymbols {
         Self {
-            used_symbols: HashSet::from([used_symbol]),
+            used_symbols: HashSet::from([used_symbol.sym.to_string()]),
             ..Default::default()
         }
     }

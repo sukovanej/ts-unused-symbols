@@ -68,9 +68,9 @@ fn analyze_module_decl(decl: ModuleDecl) -> ModuleSymbols {
     }
 }
 
-fn analyze_import_specifier(decl: ImportSpecifier) -> Ident {
+fn analyze_import_specifier(decl: ImportSpecifier) -> String {
     match decl {
-        ImportSpecifier::Named(i) => i.local,
+        ImportSpecifier::Named(i) => i.local.sym.to_string(),
         _ => unimplemented!(),
     }
 }
