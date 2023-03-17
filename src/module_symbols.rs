@@ -2,21 +2,11 @@ use std::collections::HashSet;
 
 use swc_ecma_ast::Ident;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ModuleSymbols {
     pub defined_symbols: HashSet<Ident>,
     pub used_symbols: HashSet<Ident>,
     pub exported_symbols: HashSet<Ident>,
-}
-
-impl Default for ModuleSymbols {
-    fn default() -> Self {
-        return Self {
-            defined_symbols: HashSet::new(),
-            exported_symbols: HashSet::new(),
-            used_symbols: HashSet::new(),
-        };
-    }
 }
 
 impl ModuleSymbols {
