@@ -18,12 +18,7 @@ pub struct ImportedSymbol {
 
 impl ImportedSymbol {
     fn debug(&self) -> String {
-        let symbols: Vec<String> = self
-            .symbols
-            .clone()
-            .into_iter()
-            .map(|i| i.to_string())
-            .collect();
+        let symbols: Vec<String> = self.symbols.clone();
 
         format!("{} ({})", symbols.join("\n"), self.from)
     }
@@ -31,26 +26,9 @@ impl ImportedSymbol {
 
 impl ModuleSymbols {
     pub fn debug(&self) -> String {
-        let defined_symbols: Vec<String> = self
-            .defined_symbols
-            .clone()
-            .into_iter()
-            .map(|i| i.to_string())
-            .collect();
-
-        let used_symbols: Vec<String> = self
-            .used_symbols
-            .clone()
-            .into_iter()
-            .map(|i| i.to_string())
-            .collect();
-
-        let exported_symbols: Vec<String> = self
-            .exported_symbols
-            .clone()
-            .into_iter()
-            .map(|i| i.to_string())
-            .collect();
+        let defined_symbols: Vec<String> = self.defined_symbols.clone().into_iter().collect();
+        let used_symbols: Vec<String> = self.used_symbols.clone().into_iter().collect();
+        let exported_symbols: Vec<String> = self.exported_symbols.clone().into_iter().collect();
 
         let imported_symbols: Vec<String> = self
             .imported_symbols

@@ -51,7 +51,7 @@ fn find_unused_symbols_in_module(
     let mut unused_symbols: Vec<String> = vec![];
 
     for symbol in &analyzed_module.symbols.exported_symbols {
-        if !is_symbol_used_in_module(&symbol, &analyzed_module.path, other_modules) {
+        if !is_symbol_used_in_module(symbol, &analyzed_module.path, other_modules) {
             unused_symbols.push(symbol.to_owned());
         }
     }

@@ -1,8 +1,8 @@
 mod analyze_package;
 mod analyzed_module;
 mod analyzer;
-mod module_symbols;
 mod find_unused_symbols;
+mod module_symbols;
 
 use std::path::PathBuf;
 

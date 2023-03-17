@@ -6,7 +6,7 @@ use swc_ecma_ast::{
     BlockStmt, BlockStmtOrExpr, CallExpr, Callee, Class, ClassMember, Decl, Expr, Function, Module,
     ModuleDecl, ModuleItem, Pat, Prop, PropOrSpread, Stmt, TsModuleName,
 };
-use swc_ecma_ast::{EsVersion, Ident, ImportSpecifier};
+use swc_ecma_ast::{EsVersion, ImportSpecifier};
 use swc_ecma_parser::{error::Error, parse_file_as_module, Syntax, TsConfig};
 
 use crate::module_symbols::ImportedSymbol;
