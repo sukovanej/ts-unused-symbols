@@ -32,26 +32,26 @@ impl ModuleSymbols {
             .map(|i| i.to_string())
             .collect();
 
-        return format!(
+        format!(
             "Defined symbols:\n{:?}\nUsed symbols:\n{:?}\nExported symbols\n{:?}",
             defined_symbols, used_symbols, exported_symbols
-        );
+        )
     }
 
     pub fn new_defined_symbol(defined_symbol: Ident) -> ModuleSymbols {
-        return Self {
+        Self {
             defined_symbols: HashSet::from([defined_symbol]),
             exported_symbols: HashSet::new(),
             used_symbols: HashSet::new(),
-        };
+        }
     }
 
     pub fn new_used_symbol(used_symbol: Ident) -> ModuleSymbols {
-        return Self {
+        Self {
             defined_symbols: HashSet::new(),
             exported_symbols: HashSet::new(),
             used_symbols: HashSet::from([used_symbol]),
-        };
+        }
     }
 
     pub fn merge_iter<Iter: IntoIterator<Item = ModuleSymbols>>(
@@ -99,5 +99,5 @@ pub fn merge_iter<Iter: IntoIterator<Item = ModuleSymbols>>(
         analyzed_module = analyzed_module.merge(other_analyzed_module);
     }
 
-    return analyzed_module;
+    analyzed_module
 }

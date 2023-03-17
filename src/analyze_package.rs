@@ -1,4 +1,7 @@
-use std::{fs, path::PathBuf};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use crate::{analyzed_module::AnalyzedModule, analyzer::analyze_file};
 
@@ -32,9 +35,9 @@ pub fn analyze_package(path: PathBuf) -> AnalyzedPackage {
     AnalyzedPackage { path, modules }
 }
 
-fn traverse_path(path: &PathBuf) -> Vec<PathBuf> {
+fn traverse_path(path: &Path) -> Vec<PathBuf> {
     let mut result = vec![];
-    let dir = fs::read_dir(path.as_path()).unwrap();
+    let dir = fs::read_dir(path).unwrap();
 
     for file in dir {
         let file = file.unwrap();

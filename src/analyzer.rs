@@ -106,7 +106,7 @@ fn analyze_expr(expr: Expr) -> ModuleSymbols {
                 .into_iter()
                 .map(|e| analyze_option(|e| analyze_expr(*e.expr), e)),
         ),
-        Expr::Object(expr) => merge_iter(expr.props.into_iter().map(|e| analyze_prop_or_spread(e))),
+        Expr::Object(expr) => merge_iter(expr.props.into_iter().map(analyze_prop_or_spread)),
         Expr::Fn(expr) => analyze_function(*expr.function), // TODO ident
         Expr::Unary(expr) => analyze_expr(*expr.arg),
         Expr::Update(expr) => analyze_expr(*expr.arg),
@@ -134,7 +134,7 @@ fn analyze_expr(expr: Expr) -> ModuleSymbols {
         },
         Expr::Class(c) => c
             .ident
-            .map(|i| ModuleSymbols::new_defined_symbol(i))
+            .map(ModuleSymbols::new_defined_symbol)
             .unwrap_or_else(ModuleSymbols::default)
             .merge(analyze_class(*c.class)),
         Expr::Yield(expr) => analyze_option(|e| analyze_expr(*e), expr.arg),
@@ -171,7 +171,7 @@ fn analyze_call_expr(expr: CallExpr) -> ModuleSymbols {
 
 fn analyze_class(expr: Class) -> ModuleSymbols {
     merge_iter(expr.body.into_iter().map(|e| match e {
-        ClassMember::Constructor(expr) => analyze_option(|e| analyze_block_stmt(e), expr.body),
+        ClassMember::Constructor(expr) => analyze_option(analyze_block_stmt, expr.body),
         _ => unimplemented!(),
     }))
 }
@@ -182,15 +182,15 @@ fn analyze_prop_or_spread(expr: PropOrSpread) -> ModuleSymbols {
             Prop::Shorthand(i) => ModuleSymbols::new_used_symbol(i),
             Prop::KeyValue(e) => analyze_expr(*e.value),
             Prop::Assign(e) => analyze_expr(*e.value),
-            Prop::Getter(e) => analyze_option(|e| analyze_block_stmt(e), e.body),
-            Prop::Setter(e) => analyze_option(|e| analyze_block_stmt(e), e.body),
+            Prop::Getter(e) => analyze_option(analyze_block_stmt, e.body),
+            Prop::Setter(e) => analyze_option(analyze_block_stmt, e.body),
             Prop::Method(e) => analyze_function(*e.function), // TODO maybe analyze propName
         },
         PropOrSpread::Spread(s) => analyze_expr(*s.expr),
     }
 }
 
-fn analyze_function(fun: Function) -> ModuleSymbols {
+fn analyze_function(_fun: Function) -> ModuleSymbols {
     unimplemented!()
 }
 
