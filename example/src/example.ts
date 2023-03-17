@@ -6,7 +6,6 @@ export const functionHelloWorld = () => {
 
 export const constantMyConstant = "standa";
 
-
 const f = function() {
   helloWorld();
   console.log(constantMyConstant);

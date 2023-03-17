@@ -1,7 +1,5 @@
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+use std::fs;
+use std::path::{Path, PathBuf};
 
 use crate::{analyzed_module::AnalyzedModule, analyzer::analyze_file};
 
@@ -21,11 +19,11 @@ impl AnalyzedPackage {
             .map(|m| m.debug())
             .collect();
 
-        format!("Package: {}\n{:?}", path, modules)
+        format!("Package: {}\n{}", path, modules.join("\n"))
     }
 }
 
-pub struct AnalyzeOptions {}
+// pub struct AnalyzeOptions {}
 
 pub fn analyze_package(path: PathBuf) -> AnalyzedPackage {
     let paths = traverse_path(&path);

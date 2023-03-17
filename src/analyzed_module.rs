@@ -15,6 +15,6 @@ impl AnalyzedModule {
 
     pub fn debug(&self) -> String {
         let path = self.path.to_str().unwrap();
-        format!("File: {}\n{}", path, self.symbols.debug())
+        format!(" - File: {}\n{}", path, self.symbols.debug())
     }
 }

@@ -25,7 +25,7 @@ impl ImportedSymbol {
             .map(|i| i.sym.to_string())
             .collect();
 
-        format!("Imported {} from {}", symbols.join(", "), self.from)
+        format!("{} ({})", symbols.join("\n"), self.from)
     }
 }
 
@@ -59,10 +59,28 @@ impl ModuleSymbols {
             .map(|i| i.debug())
             .collect();
 
-        format!(
-            "Defined symbols:\n{:?}\nUsed symbols:\n{:?}\nExported symbols\n{:?}\nImported symbols\n{:?}",
-            defined_symbols, used_symbols, exported_symbols, imported_symbols
-        )
+        let values = vec![
+            ("Defined symbols", defined_symbols),
+            ("Used symbols", used_symbols),
+            ("Exported symbols", exported_symbols),
+            ("Imported symbols", imported_symbols),
+        ];
+
+        values
+            .into_iter()
+            .map(|(key, value)| {
+                format!(
+                    "   - {}:\n{}",
+                    key,
+                    value
+                        .iter()
+                        .map(|s| format!("     - {}", s))
+                        .collect::<Vec<String>>()
+                        .join("\n")
+                )
+            })
+            .collect::<Vec<String>>()
+            .join("\n")
     }
 
     pub fn new_defined_symbol(defined_symbol: Ident) -> ModuleSymbols {
