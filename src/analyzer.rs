@@ -2,13 +2,14 @@ use std::path::PathBuf;
 
 use swc_common::sync::Lrc;
 use swc_common::SourceMap;
-use swc_ecma_ast::EsVersion;
 use swc_ecma_ast::{
     BlockStmt, BlockStmtOrExpr, CallExpr, Callee, Class, ClassMember, Decl, Expr, Function, Module,
     ModuleDecl, ModuleItem, Pat, Prop, PropOrSpread, Stmt, TsModuleName,
 };
+use swc_ecma_ast::{EsVersion, Ident, ImportSpecifier};
 use swc_ecma_parser::{error::Error, parse_file_as_module, Syntax, TsConfig};
 
+use crate::module_symbols::ImportedSymbol;
 use crate::{
     analyzed_module::AnalyzedModule,
     module_symbols::{merge_iter, ModuleSymbols},
@@ -48,7 +49,14 @@ fn analyze_module_item(module_item: ModuleItem) -> ModuleSymbols {
 
 fn analyze_module_decl(decl: ModuleDecl) -> ModuleSymbols {
     match decl {
-        ModuleDecl::Import(_) => unimplemented!(),
+        ModuleDecl::Import(decl) => ModuleSymbols::new_imported_symbol(ImportedSymbol {
+            from: decl.src.value.to_string(),
+            symbols: decl
+                .specifiers
+                .into_iter()
+                .map(analyze_import_specifier)
+                .collect(),
+        }),
         ModuleDecl::ExportDecl(decl) => analyze_decl(decl.decl).defined_to_exported(),
         ModuleDecl::ExportNamed(_) => unimplemented!(),
         ModuleDecl::ExportDefaultDecl(_) => unimplemented!(),
@@ -57,6 +65,13 @@ fn analyze_module_decl(decl: ModuleDecl) -> ModuleSymbols {
         ModuleDecl::TsImportEquals(_) => unimplemented!(),
         ModuleDecl::TsExportAssignment(_) => unimplemented!(),
         ModuleDecl::TsNamespaceExport(_) => unimplemented!(),
+    }
+}
+
+fn analyze_import_specifier(decl: ImportSpecifier) -> Ident {
+    match decl {
+        ImportSpecifier::Named(i) => i.local,
+        _ => unimplemented!()
     }
 }
 
