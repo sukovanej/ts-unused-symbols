@@ -37,21 +37,9 @@ fn analyze_module_with_path_resolve(path: PathBuf) -> AnalyzedModule<PathBuf> {
                 .map(|export| match export {
                     Export::Default => Export::Default,
                     Export::Symbol(s) => Export::Symbol(s.to_owned()),
-                    Export::AllFrom(s) => {
-                        let mut path = path.clone();
-                        path.pop();
-                        path.push(PathBuf::from(s));
-                        path.set_extension("ts");
-                        Export::AllFrom(path.canonicalize().unwrap())
-                    }
+                    Export::AllFrom(s) => Export::AllFrom(resolve_import_path(&path, s)),
                     Export::Reexport(e) => Export::Reexport(Reexport {
-                        from: {
-                            let mut path = path.clone();
-                            path.pop();
-                            path.push(PathBuf::from(e.from.clone()));
-                            path.set_extension("ts");
-                            path.canonicalize().unwrap()
-                        },
+                        from: resolve_import_path(&path, &e.from),
                     }),
                 })
                 .collect(),
@@ -61,14 +49,7 @@ fn analyze_module_with_path_resolve(path: PathBuf) -> AnalyzedModule<PathBuf> {
                 .iter()
                 .map(|import| ImportedSymbol {
                     symbols: import.symbols.clone(),
-                    from: {
-                        let mut path = path.clone();
-                        path.pop();
-                        path.push(PathBuf::from(import.from.clone()));
-                        path.set_extension("ts");
-                        path.canonicalize()
-                            .expect(&format!("{} not found", import.from))
-                    },
+                    from: resolve_import_path(&path, &import.from),
                 })
                 .collect(),
         },
@@ -92,4 +73,12 @@ fn traverse_path(path: &Path) -> Vec<PathBuf> {
     }
 
     result
+}
+
+fn resolve_import_path(current_path: &Path, import_str: &str) -> PathBuf {
+    let mut path = current_path.to_owned();
+    path.pop();
+    path.push(PathBuf::from(import_str));
+    path.set_extension("ts");
+    path.canonicalize().unwrap()
 }
