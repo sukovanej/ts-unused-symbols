@@ -1,15 +1,36 @@
+mod analyze_file;
 mod analyze_package;
 mod analyzed_module;
-mod analyzer;
-mod find_unused_symbols;
+mod find_unused_exports;
 mod module_symbols;
 
 use std::path::PathBuf;
 
-use crate::{analyze_package::analyze_package, find_unused_symbols::find_unused_symbols};
+use clap::Parser;
+
+use crate::{analyze_package::analyze_package, find_unused_exports::find_unused_exports};
+
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    #[arg(short, long)]
+    path: String,
+}
 
 fn main() {
-    let analyzed_package = analyze_package(PathBuf::from("example/src"));
-    let unused_symbols = find_unused_symbols(&analyzed_package);
-    println!("{:#?}", unused_symbols);
+    let args = Args::parse();
+
+    let analyzed_package = analyze_package(PathBuf::from(args.path));
+    let unused_symbols = find_unused_exports(&analyzed_package)
+        .iter()
+        .map(|export| {
+            format!(
+                " - {}:{}",
+                export.filename.to_str().unwrap().to_owned(),
+                export.symbol
+            )
+        })
+        .collect::<Vec<String>>()
+        .join("\n");
+    println!("{}", unused_symbols);
 }

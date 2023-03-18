@@ -1,20 +1,15 @@
-use std::path::PathBuf;
+use std::fmt::Debug;
 
 use crate::module_symbols::ModuleSymbols;
 
-#[derive(Clone)]
-pub struct AnalyzedModule {
-    pub path: PathBuf,
-    pub symbols: ModuleSymbols,
+#[derive(Clone, Debug)]
+pub struct AnalyzedModule<P> {
+    pub path: P,
+    pub symbols: ModuleSymbols<P>,
 }
 
-impl AnalyzedModule {
-    pub fn new(path: PathBuf, symbols: ModuleSymbols) -> Self {
+impl AnalyzedModule<String> {
+    pub fn new(path: String, symbols: ModuleSymbols<String>) -> Self {
         Self { path, symbols }
-    }
-
-    pub fn debug(&self) -> String {
-        let path = self.path.to_str().unwrap();
-        format!(" - File: {}\n{}", path, self.symbols.debug())
     }
 }

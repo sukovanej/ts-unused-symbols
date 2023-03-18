@@ -1,131 +1,79 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, hash::Hash};
 
 use swc_ecma_ast::Ident;
 
 #[derive(Debug, Clone, Default)]
-pub struct ModuleSymbols {
-    pub defined_symbols: HashSet<String>,
-    pub used_symbols: HashSet<String>,
-    pub exported_symbols: HashSet<String>,
-    pub imported_symbols: HashSet<ImportedSymbol>,
+pub struct ModuleSymbols<P> {
+    pub exports: HashSet<Export<P>>,
+    pub imports: HashSet<ImportedSymbol<P>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct ImportedSymbol {
-    pub symbols: Vec<String>,
-    pub from: String,
+pub enum Export<P> {
+    Symbol(String),
+    Reexport(Reexport<P>),
+    AllFrom(P),
+    Default,
 }
 
-impl ImportedSymbol {
-    fn debug(&self) -> String {
-        let symbols: Vec<String> = self.symbols.clone();
-
-        format!("{} ({})", symbols.join("\n"), self.from)
-    }
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Reexport<P> {
+    pub from: P,
 }
 
-impl ModuleSymbols {
-    pub fn debug(&self) -> String {
-        let defined_symbols: Vec<String> = self.defined_symbols.clone().into_iter().collect();
-        let used_symbols: Vec<String> = self.used_symbols.clone().into_iter().collect();
-        let exported_symbols: Vec<String> = self.exported_symbols.clone().into_iter().collect();
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ImportedSymbol<P> {
+    pub symbols: Vec<Import>,
+    pub from: P,
+}
 
-        let imported_symbols: Vec<String> = self
-            .imported_symbols
-            .clone()
-            .into_iter()
-            .map(|i| i.debug())
-            .collect();
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Import {
+    Named(String),
+    Default,
+    Namespace,
+}
 
-        let values = vec![
-            ("Defined symbols", defined_symbols),
-            ("Used symbols", used_symbols),
-            ("Exported symbols", exported_symbols),
-            ("Imported symbols", imported_symbols),
-        ];
-
-        values
-            .into_iter()
-            .map(|(key, value)| {
-                format!(
-                    "   - {}:\n{}",
-                    key,
-                    value
-                        .iter()
-                        .map(|s| format!("     - {}", s))
-                        .collect::<Vec<String>>()
-                        .join("\n")
-                )
-            })
-            .collect::<Vec<String>>()
-            .join("\n")
-    }
-
-    pub fn new_defined_symbol(defined_symbol: Ident) -> ModuleSymbols {
+impl ModuleSymbols<String> {
+    pub fn new_imported_symbol(imported_symbol: ImportedSymbol<String>) -> Self {
         Self {
-            defined_symbols: HashSet::from([defined_symbol.sym.to_string()]),
+            imports: HashSet::from([imported_symbol]),
             ..Default::default()
         }
     }
 
-    pub fn new_imported_symbol(imported_symbol: ImportedSymbol) -> ModuleSymbols {
+    pub fn new_exported_symbol(symbol: Ident) -> Self {
+        Self::new_exported_symbol_str(symbol.sym.to_string())
+    }
+
+    pub fn new_exported_symbol_str(symbol: String) -> Self {
         Self {
-            imported_symbols: HashSet::from([imported_symbol]),
+            exports: HashSet::from([Export::Symbol(symbol)]),
             ..Default::default()
         }
     }
 
-    pub fn new_used_symbol(used_symbol: Ident) -> ModuleSymbols {
+    pub fn new_all_export(from: String) -> Self {
         Self {
-            used_symbols: HashSet::from([used_symbol.sym.to_string()]),
+            exports: HashSet::from([Export::AllFrom(from)]),
             ..Default::default()
         }
     }
 
-    pub fn merge_iter<Iter: IntoIterator<Item = ModuleSymbols>>(
-        self,
-        analyzed_modules: Iter,
-    ) -> ModuleSymbols {
-        merge_iter(analyzed_modules).merge(self)
-    }
+    pub fn merge(self, analyzed_module: Self) -> Self {
+        let mut exports = self.exports;
+        exports.extend(analyzed_module.exports);
 
-    pub fn merge(self, analyzed_module: ModuleSymbols) -> Self {
-        let mut defined_symbols = self.defined_symbols;
-        defined_symbols.extend(analyzed_module.defined_symbols);
+        let mut imports = self.imports;
+        imports.extend(analyzed_module.imports);
 
-        let mut used_symbols = self.used_symbols;
-        used_symbols.extend(analyzed_module.used_symbols);
-
-        let mut exported_symbols = self.exported_symbols;
-        exported_symbols.extend(analyzed_module.exported_symbols);
-
-        let mut imported_symbols = self.imported_symbols;
-        imported_symbols.extend(analyzed_module.imported_symbols);
-
-        Self {
-            defined_symbols,
-            used_symbols,
-            exported_symbols,
-            imported_symbols,
-        }
-    }
-
-    pub fn defined_to_exported(self) -> Self {
-        let mut exported_symbols = self.exported_symbols;
-        exported_symbols.extend(self.defined_symbols);
-
-        Self {
-            defined_symbols: HashSet::new(),
-            exported_symbols,
-            used_symbols: self.used_symbols,
-            imported_symbols: self.imported_symbols,
-        }
+        Self { exports, imports }
     }
 }
 
-pub fn merge_iter<Iter: IntoIterator<Item = ModuleSymbols>>(
+pub fn merge_iter<Iter: IntoIterator<Item = ModuleSymbols<String>>>(
     analyzed_modules: Iter,
-) -> ModuleSymbols {
+) -> ModuleSymbols<String> {
     let mut analyzed_module = ModuleSymbols::default();
 
     for other_analyzed_module in analyzed_modules {
