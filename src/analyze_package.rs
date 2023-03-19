@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -8,21 +9,21 @@ use crate::module_symbols::{Export, ImportedSymbol, ModuleSymbols, Reexport};
 use crate::tsconfig::TsConfig;
 
 #[derive(Clone, Debug)]
-pub struct AnalyzedPackage<P> {
-    pub path: P,
-    pub modules: Vec<AnalyzedModule<P>>,
+pub struct AnalyzedPackage {
+    pub path: PathBuf,
+    pub modules: HashMap<PathBuf, AnalyzedModule<PathBuf>>,
 }
 
 // pub struct AnalyzeOptions {}
 
-pub fn analyze_package(path: &Path, tsconfig: &Option<TsConfig>) -> AnalyzedPackage<PathBuf> {
+pub fn analyze_package(path: &Path, tsconfig: &Option<TsConfig>) -> AnalyzedPackage {
     let mut source_files_path = path.to_owned();
     source_files_path.push("src");
 
     let paths = traverse_path(&source_files_path);
     let modules = paths
         .into_iter()
-        .map(|p| analyze_module_with_path_resolve(p, tsconfig, path))
+        .map(|p| (p.to_owned(), analyze_module_with_path_resolve(&p, tsconfig, path)))
         .collect();
 
     AnalyzedPackage {
@@ -32,11 +33,11 @@ pub fn analyze_package(path: &Path, tsconfig: &Option<TsConfig>) -> AnalyzedPack
 }
 
 fn analyze_module_with_path_resolve(
-    path: PathBuf,
+    path: &Path,
     tsconfig: &Option<TsConfig>,
-    package_path: &Path
+    package_path: &Path,
 ) -> AnalyzedModule<PathBuf> {
-    let analyzed_file = analyze_file(path.clone());
+    let analyzed_file = analyze_file(path);
 
     AnalyzedModule {
         path: path.canonicalize().unwrap(),
@@ -51,8 +52,10 @@ fn analyze_module_with_path_resolve(
                     Export::AllFrom(s) => {
                         resolve_import_path(&path, s, tsconfig, package_path).map(Export::AllFrom)
                     }
-                    Export::Reexport(e) => resolve_import_path(&path, &e.from, tsconfig, package_path)
-                        .map(|from| Export::Reexport(Reexport { from })),
+                    Export::Reexport(e) => {
+                        resolve_import_path(&path, &e.from, tsconfig, package_path)
+                            .map(|from| Export::Reexport(Reexport { from }))
+                    }
                 })
                 .collect(),
             imports: analyzed_file
@@ -60,9 +63,11 @@ fn analyze_module_with_path_resolve(
                 .imports
                 .iter()
                 .filter_map(|import| {
-                    resolve_import_path(&path, &import.from, tsconfig, package_path).map(|from| ImportedSymbol {
-                        symbols: import.symbols.clone(),
-                        from,
+                    resolve_import_path(&path, &import.from, tsconfig, package_path).map(|from| {
+                        ImportedSymbol {
+                            symbols: import.symbols.clone(),
+                            from,
+                        }
                     })
                 })
                 .collect(),
@@ -89,7 +94,7 @@ fn traverse_path(path: &Path) -> Vec<PathBuf> {
                 .unwrap_or("".to_string());
 
             if vec!["ts"].contains(&extension.as_str()) {
-                result.push(file.path());
+                result.push(file.path().canonicalize().unwrap());
             }
         }
     }
@@ -118,6 +123,10 @@ fn resolve_import_path(
         path = package_base_path.to_owned();
         path.push(PathBuf::from(base_url));
         path.push(import_path);
+    }
+
+    if path.is_dir() {
+        path.push(PathBuf::from("index"));
     }
 
     path.set_extension("ts");

@@ -1,4 +1,4 @@
-use std::{collections::HashSet, hash::Hash};
+use std::{collections::HashSet, hash::Hash, path::PathBuf};
 
 use swc_ecma_ast::Ident;
 

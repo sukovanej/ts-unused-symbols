@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::Path;
 
 use swc_common::sync::Lrc;
 use swc_common::SourceMap;
@@ -14,11 +14,9 @@ use crate::{
     module_symbols::{merge_iter, ModuleSymbols},
 };
 
-pub fn analyze_file(path: PathBuf) -> AnalyzedModule<String> {
+pub fn analyze_file(path: &Path) -> AnalyzedModule<String> {
     let cm: Lrc<SourceMap> = Default::default();
-    let fm = cm
-        .load_file(path.as_path())
-        .expect("failed to load test.js");
+    let fm = cm.load_file(path).expect("failed to load test.js");
     let ts_config = TsConfig::default();
     let mut recovered_errors: Vec<Error> = Vec::new();
 

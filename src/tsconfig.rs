@@ -20,8 +20,6 @@ pub fn try_load_tsconfig(path: &Path) -> Option<TsConfig> {
     let mut tsconfig_path = path.to_owned();
     tsconfig_path.push(PathBuf::from(tsconfig_filename));
 
-    println!("{:?}", tsconfig_path);
-
     if !tsconfig_path.exists() {
         return None;
     }
