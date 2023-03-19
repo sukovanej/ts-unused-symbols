@@ -173,7 +173,6 @@ fn resolve_import_path(
     }
 
     if !path.exists() {
-        println!("{import_str:?}, {path:#?} not found");
         return None;
     }
 

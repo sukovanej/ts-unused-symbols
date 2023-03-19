@@ -16,17 +16,17 @@ use crate::module_symbols::{merge_iter, Export, Import, ImportedSymbol, ModuleSy
 pub fn analyze_file(path: &Path) -> AnalyzedModule<String> {
     let cm: Lrc<SourceMap> = Default::default();
     let fm = cm.load_file(path).expect("failed to load test.js");
-    let ts_config = TsConfig::default();
+    let ts_config = TsConfig {
+        tsx: true, // TODO: decide based on the file extension
+        ..TsConfig::default()
+    };
+
     let mut recovered_errors: Vec<Error> = Vec::new();
 
-    let module = parse_file_as_module(
-        &fm,
-        Syntax::Typescript(ts_config),
-        EsVersion::EsNext,
-        None,
-        &mut recovered_errors,
-    )
-    .unwrap_or_else(|_| panic!("Failed on {path:?}"));
+    let syntax = Syntax::Typescript(ts_config);
+
+    let module = parse_file_as_module(&fm, syntax, EsVersion::EsNext, None, &mut recovered_errors)
+        .unwrap_or_else(|_| panic!("Failed on {path:?}"));
 
     let mut symbols = analyze_module_symbols(module.clone());
     let symbol_usage_analyze = SymbolsUsageAnalyzer::new(
@@ -67,7 +67,7 @@ fn analyze_module_decl(decl: ModuleDecl) -> ModuleSymbols<String> {
         ModuleDecl::ExportNamed(decl) => {
             merge_iter(decl.specifiers.iter().map(analyze_export_specifier))
         }
-        ModuleDecl::ExportDefaultDecl(_) => unimplemented!(),
+        ModuleDecl::ExportDefaultDecl(_) => ModuleSymbols::new_export(Export::Default),
         ModuleDecl::ExportDefaultExpr(_) => ModuleSymbols::new_export(Export::Default),
         ModuleDecl::ExportAll(decl) => ModuleSymbols::new_all_export(decl.src.value.to_string()),
         ModuleDecl::TsImportEquals(_) => ModuleSymbols::default(), // TODO

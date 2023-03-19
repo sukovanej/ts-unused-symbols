@@ -37,7 +37,10 @@ fn main() {
 
     let tsconfig = try_load_tsconfig(&path);
 
-    let mut exclude_patterns = vec![Regex::new("node_modules").unwrap()];
+    let mut exclude_patterns: Vec<Regex> = vec!["node_modules", ".d.ts$"]
+        .iter()
+        .map(|e| Regex::new(e).unwrap())
+        .collect();
     exclude_patterns.extend(args.exclude_patterns.iter().map(|p| Regex::new(p).unwrap()));
 
     let mut ignore_patterns = vec![Regex::new("node_modules").unwrap()];
@@ -52,7 +55,7 @@ fn main() {
 
     print_unsed_exports(&final_unused_exports);
 
-    println!("\n - {} unused exports", unused_exports.len());
+    println!("\n - {} unused exports", final_unused_exports.len());
     println!(" - {number_of_ignored} unused exports ignored in the report",);
     println!(" - {} files analyzed", analyzed_package.modules.len());
 }

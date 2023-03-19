@@ -33,6 +33,7 @@ impl UnusedExport {
 pub fn find_unused_exports(analyzed_package: &AnalyzedPackage) -> Vec<UnusedExport> {
     let all_imports = get_all_imports(analyzed_package);
     let all_exports = get_all_exports(analyzed_package);
+
     let not_imported_exports = all_exports.difference(&all_imports);
     not_imported_exports
         .into_iter()
@@ -71,8 +72,8 @@ fn resolve_import(
 ) -> HashSet<(Symbol, PathBuf)> {
     let imports = match import {
         Import::Named(s) => {
-            let imported_module = analyzed_package.modules.get(from);
             let mut resolved = HashSet::from([(Symbol::Symbol(s.to_owned()), from.to_owned())]);
+            let imported_module = analyzed_package.modules.get(from);
 
             if let Some(imported_module) = imported_module {
                 for export in &imported_module.symbols.exports {
@@ -90,7 +91,7 @@ fn resolve_import(
                                 resolved.insert((Symbol::Symbol(s.to_owned()), from.to_owned()));
                             }
                         }
-                        Export::Default => todo!("default export"),
+                        Export::Default => {}
                     }
                 }
             }

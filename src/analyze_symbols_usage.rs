@@ -1,8 +1,9 @@
 use std::collections::HashSet;
 
 use swc_ecma_ast::{
-    BlockStmt, BlockStmtOrExpr, CallExpr, Callee, Class, ClassMember, Decl, Expr, Function,
-    MemberExpr, MemberProp, Module, ModuleDecl, ModuleItem, Prop, PropOrSpread, Stmt,
+    BlockStmt, BlockStmtOrExpr, CallExpr, Callee, Class, ClassMember, Decl, DefaultDecl, Expr,
+    Function, MemberExpr, MemberProp, Module, ModuleDecl, ModuleItem, Prop, PropOrSpread, Stmt,
+    TsInterfaceDecl,
 };
 
 use crate::module_symbols::{Import, Usage};
@@ -37,13 +38,21 @@ impl SymbolsUsageAnalyzer {
             ModuleDecl::Import(_) => HashSet::default(),
             ModuleDecl::ExportDecl(decl) => self.analyze_decl(decl.decl),
             ModuleDecl::ExportNamed(_) => Default::default(),
-            ModuleDecl::ExportDefaultDecl(_) => unimplemented!(),
+            ModuleDecl::ExportDefaultDecl(decl) => match decl.decl {
+                DefaultDecl::Fn(decl) => self.analyze_function(*decl.function),
+                DefaultDecl::Class(decl) => self.analyze_class(*decl.class),
+                DefaultDecl::TsInterfaceDecl(decl) => self.analyze_tsinterface(*decl),
+            },
             ModuleDecl::ExportDefaultExpr(decl) => self.analyze_expr(*decl.expr),
             ModuleDecl::ExportAll(_) => Default::default(),
             ModuleDecl::TsImportEquals(_) => Default::default(),
             ModuleDecl::TsExportAssignment(_) => unimplemented!(),
             ModuleDecl::TsNamespaceExport(_) => unimplemented!(),
         }
+    }
+
+    fn analyze_tsinterface(&self, decl: TsInterfaceDecl) -> HashSet<Usage> {
+        todo!("{decl:?}")
     }
 
     fn analyze_stmt(&self, stmt: Stmt) -> HashSet<Usage> {
@@ -164,8 +173,8 @@ impl SymbolsUsageAnalyzer {
             Expr::JSXMember(_) => unimplemented!(),
             Expr::JSXNamespacedName(_) => unimplemented!(),
             Expr::JSXEmpty(_) => unimplemented!(),
-            Expr::JSXElement(_) => unimplemented!(),
-            Expr::JSXFragment(_) => unimplemented!(),
+            Expr::JSXElement(_) => Default::default(), // TODO
+            Expr::JSXFragment(_) => Default::default(), // TODO
             Expr::TsTypeAssertion(expr) => self.analyze_expr(*expr.expr),
             Expr::TsConstAssertion(expr) => self.analyze_expr(*expr.expr),
             Expr::TsNonNull(expr) => self.analyze_expr(*expr.expr),
