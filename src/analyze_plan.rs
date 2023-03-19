@@ -44,8 +44,6 @@ pub fn prepare_analyze_plan(path: &Path) -> AnalyzePlan {
     let package_json = try_load_package_json(path).unwrap();
     let mut packages = vec![];
 
-    println!("{package_json:#?}");
-
     if let Some(monorepo_packages) = package_json.workspaces {
         for monorepo_package_wildcard in monorepo_packages {
             packages.extend(find_packages(path, &monorepo_package_wildcard));

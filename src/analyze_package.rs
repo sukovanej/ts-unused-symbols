@@ -182,14 +182,12 @@ fn resolve_import_path(
         if monorepo_name == import_str {
             let mut path = package_path.to_owned();
             path.push(PathBuf::from(import_str[monorepo_name.len()..].to_owned()));
-            println!("Using monorepo name {path:?}");
             return Some(path);
         }
 
         if import_str.starts_with(monorepo_name) {
             let mut path = package_path.to_owned();
             path.push(PathBuf::from(import_str[monorepo_name.len()..].to_owned()));
-            println!("Using monorepo name {path:?}");
             return Some(path);
         }
     }

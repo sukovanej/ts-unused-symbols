@@ -48,8 +48,6 @@ fn main() {
 
     let analyze_plan = prepare_analyze_plan(&path);
 
-    println!("Analyze plan: {analyze_plan:#?}");
-
     let analyzed_packages = analyze_plan
         .packages
         .iter()
@@ -62,8 +60,6 @@ fn main() {
             )
         })
         .collect::<Vec<AnalyzedPackage>>();
-
-    println!("Packages parsed");
 
     let unused_exports = find_unused_exports(&analyzed_packages);
     let final_unused_exports = filter_ignored(&unused_exports, &options.ignore_patterns);
