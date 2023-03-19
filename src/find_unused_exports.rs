@@ -9,7 +9,7 @@ use crate::{
     module_symbols::{Export, Import},
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct UnusedExport {
     pub filename: PathBuf,
     pub symbol: String,

@@ -18,21 +18,27 @@ pub struct AnalyzedPackage {
 
 #[derive(Debug, Default)]
 pub struct AnalyzeOptions {
-    ignore_patterns: Vec<Regex>,
-    tsconfig: Option<TsConfig>,
+    pub ignore_patterns: Vec<Regex>,
+    pub exclude_patterns: Vec<Regex>,
+    pub tsconfig: Option<TsConfig>,
 }
 
 impl AnalyzeOptions {
-    pub fn new(ignore_patterns: Vec<Regex>, tsconfig: Option<TsConfig>) -> Self {
+    pub fn new(
+        ignore_patterns: Vec<Regex>,
+        exclude_patterns: Vec<Regex>,
+        tsconfig: Option<TsConfig>,
+    ) -> Self {
         Self {
             ignore_patterns,
+            exclude_patterns,
             tsconfig,
         }
     }
 }
 
 pub fn analyze_package(path: &Path, options: &AnalyzeOptions) -> AnalyzedPackage {
-    let paths = traverse_path(path, &options.ignore_patterns);
+    let paths = traverse_path(path, &options.exclude_patterns);
     let modules = paths
         .into_iter()
         .map(|p| {
@@ -93,7 +99,7 @@ fn analyze_module_with_path_resolve(
     }
 }
 
-fn traverse_path(path: &Path, ignore_patterns: &[Regex]) -> Vec<PathBuf> {
+fn traverse_path(path: &Path, exclude_patterns: &[Regex]) -> Vec<PathBuf> {
     let mut result = vec![];
     let dir = fs::read_dir(path).unwrap();
 
@@ -101,9 +107,15 @@ fn traverse_path(path: &Path, ignore_patterns: &[Regex]) -> Vec<PathBuf> {
         let file = file.unwrap();
 
         let file_type = file.file_type().unwrap();
+        let path = file.path().canonicalize().unwrap();
+        let path_str = path.to_str().unwrap();
 
         if file_type.is_dir() {
-            result.extend(traverse_path(&file.path(), ignore_patterns));
+            if exclude_patterns.iter().any(|r| r.is_match(path_str)) {
+                continue;
+            }
+
+            result.extend(traverse_path(&file.path(), exclude_patterns));
         } else if file_type.is_file() {
             let extension = file
                 .path()
@@ -111,11 +123,7 @@ fn traverse_path(path: &Path, ignore_patterns: &[Regex]) -> Vec<PathBuf> {
                 .map(|s| s.to_str().unwrap().to_owned())
                 .unwrap_or("".to_string());
 
-            let path = file.path().canonicalize().unwrap();
-            let path_str = path.to_str().unwrap();
-
-            if ignore_patterns.iter().any(|r| r.is_match(path_str)) {
-                println!("Ignoring {path:?}");
+            if exclude_patterns.iter().any(|r| r.is_match(path_str)) {
                 continue;
             }
 
