@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -163,16 +163,16 @@ fn resolve_import_path(
         path.push(PathBuf::from("index"));
     }
 
-    let mut possible_extensions = vec!["ts", "tsx", "js", "jsx", "mjs", "mts"];
+    let mut possible_extensions = VecDeque::from(["ts", "tsx", "js", "jsx", "mjs", "mts"]);
+    let filename = path.file_name().unwrap().to_str().unwrap().to_owned();
 
     while !path.exists() && !possible_extensions.is_empty() {
-        let extension = possible_extensions.pop().unwrap();
-        let filename = path.file_name().unwrap().to_str().unwrap().to_owned();
+        let extension = possible_extensions.pop_front().unwrap();
         path.set_file_name(format!("{filename}.{extension}"));
     }
 
     if !path.exists() {
-        //println!("{import_str:?} not found");
+        println!("{import_str:?}, {path:#?} not found");
         return None;
     }
 
@@ -183,4 +183,38 @@ fn resolve_import_path(
             current_path.to_str().unwrap()
         )
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{collections::HashSet, path::PathBuf};
+
+    use crate::{
+        analyze_package::analyze_package,
+        module_symbols::{Import, ImportedSymbol},
+    };
+
+    #[test]
+    fn namespace_imports() {
+        let analyzed_module = analyze_package(
+            &PathBuf::from("./tests/namespace-imports/"),
+            &Default::default(),
+        );
+        assert_eq!(analyzed_module.modules.len(), 2);
+
+        let module =
+            &analyzed_module.modules[&PathBuf::from("./tests/namespace-imports/src/app.ts")
+                .canonicalize()
+                .unwrap()];
+
+        assert_eq!(
+            module.symbols.imports,
+            HashSet::from([ImportedSymbol {
+                from: PathBuf::from("./tests/namespace-imports/src/another.ts")
+                    .canonicalize()
+                    .unwrap(),
+                symbols: vec![Import::Namespace("A".to_string())]
+            }])
+        );
+    }
 }

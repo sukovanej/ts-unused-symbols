@@ -119,3 +119,36 @@ fn analyze_pattern(pat: Pat) -> ModuleSymbols<String> {
         _ => unimplemented!(),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::{collections::HashSet, path::PathBuf};
+
+    use crate::{
+        analyze_file::analyze_file,
+        module_symbols::{Import, ImportedSymbol, Export},
+    };
+
+    #[test]
+    fn namespace_imports() {
+        let analyzed_module = analyze_file(&PathBuf::from("./tests/namespace-imports/src/app.ts"));
+        assert_eq!(
+            analyzed_module.symbols.imports,
+            HashSet::from([ImportedSymbol {
+                from: "./another".to_string(),
+                symbols: vec![Import::Namespace("A".to_string())]
+            }])
+        );
+    }
+
+    #[test]
+    fn reexported_symbols() {
+        let analyzed_module = analyze_file(&PathBuf::from(
+            "./tests/reexported-symbols/src/sub-module/index.ts",
+        ));
+        assert_eq!(
+            analyzed_module.symbols.exports,
+            HashSet::from([Export::AllFrom("./module".to_string())])
+        );
+    }
+}
