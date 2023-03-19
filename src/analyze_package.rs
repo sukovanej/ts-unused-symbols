@@ -163,9 +163,12 @@ fn resolve_import_path(
         path.push(PathBuf::from("index"));
     }
 
-    if !path.exists() {
+    let mut possible_extensions = vec!["ts", "tsx", "js", "jsx", "mjs", "mts"];
+
+    while !path.exists() && !possible_extensions.is_empty() {
+        let extension = possible_extensions.pop().unwrap();
         let filename = path.file_name().unwrap().to_str().unwrap().to_owned();
-        path.set_file_name(format!("{filename}.ts")); // TODO: try ts, tsx, js, jsx, mjs, mts extensions
+        path.set_file_name(format!("{filename}.{extension}")); // TODO: try  extensions
     }
 
     if !path.exists() {
