@@ -12,11 +12,17 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct UnusedExport {
     pub filename: PathBuf,
-    pub symbol: String,
+    pub symbol: Symbol,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum Symbol {
+    Default,
+    Symbol(String),
 }
 
 impl UnusedExport {
-    fn new(path: &Path, symbol: String) -> Self {
+    fn new(path: &Path, symbol: Symbol) -> Self {
         Self {
             filename: path.to_owned(),
             symbol,
@@ -34,7 +40,7 @@ pub fn find_unused_exports(analyzed_package: &AnalyzedPackage) -> Vec<UnusedExpo
         .collect()
 }
 
-fn get_all_imports(analyzed_package: &AnalyzedPackage) -> HashSet<(String, PathBuf)> {
+fn get_all_imports(analyzed_package: &AnalyzedPackage) -> HashSet<(Symbol, PathBuf)> {
     analyzed_package
         .modules
         .iter()
@@ -50,9 +56,9 @@ fn get_all_imports(analyzed_package: &AnalyzedPackage) -> HashSet<(String, PathB
                         .flat_map(|symbol| {
                             resolve_import(symbol, &import.from, &module.symbols, analyzed_package)
                         })
-                        .collect::<HashSet<(String, PathBuf)>>()
+                        .collect::<HashSet<(Symbol, PathBuf)>>()
                 })
-                .collect::<HashSet<(String, PathBuf)>>()
+                .collect::<HashSet<(Symbol, PathBuf)>>()
         })
         .collect()
 }
@@ -62,11 +68,11 @@ fn resolve_import(
     from: &Path,
     module_symbols: &ModuleSymbols<PathBuf>,
     analyzed_package: &AnalyzedPackage,
-) -> HashSet<(String, PathBuf)> {
+) -> HashSet<(Symbol, PathBuf)> {
     let imports = match import {
         Import::Named(s) => {
             let imported_module = analyzed_package.modules.get(from);
-            let mut resolved = HashSet::from([(s.to_owned(), from.to_owned())]);
+            let mut resolved = HashSet::from([(Symbol::Symbol(s.to_owned()), from.to_owned())]);
 
             if let Some(imported_module) = imported_module {
                 for export in &imported_module.symbols.exports {
@@ -81,7 +87,7 @@ fn resolve_import(
                             let module = analyzed_package.modules.get(from).unwrap();
 
                             if module.exports_symbol(s.as_ref()) {
-                                resolved.insert((s.to_owned(), from.to_owned()));
+                                resolved.insert((Symbol::Symbol(s.to_owned()), from.to_owned()));
                             }
                         }
                         Export::Default => todo!("default export"),
@@ -91,7 +97,7 @@ fn resolve_import(
 
             resolved
         }
-        Import::Default(_) => HashSet::new(), // TODO
+        Import::Default(_) => HashSet::from([(Symbol::Default, from.to_owned())]),
         Import::Namespace(alias) => module_symbols
             .usages
             .iter()
@@ -105,14 +111,14 @@ fn resolve_import(
                 }
                 _ => None,
             })
-            .map(|symbol| (symbol.to_owned(), from.to_owned()))
+            .map(|symbol| (Symbol::Symbol(symbol.to_owned()), from.to_owned()))
             .collect(),
     };
 
     imports
 }
 
-fn get_all_exports(analyzed_package: &AnalyzedPackage) -> HashSet<(String, PathBuf)> {
+fn get_all_exports(analyzed_package: &AnalyzedPackage) -> HashSet<(Symbol, PathBuf)> {
     analyzed_package
         .modules
         .iter()
@@ -125,9 +131,9 @@ fn get_all_exports(analyzed_package: &AnalyzedPackage) -> HashSet<(String, PathB
                     Export::Default => None,
                     Export::Reexport(_) => None,
                     Export::AllFrom(_) => None,
-                    Export::Symbol(s) => Some((s.to_owned(), path.to_owned())),
+                    Export::Symbol(s) => Some((Symbol::Symbol(s.to_owned()), path.to_owned())),
                 })
-                .collect::<HashSet<(String, PathBuf)>>()
+                .collect::<HashSet<(Symbol, PathBuf)>>()
         })
         .collect()
 }
@@ -164,6 +170,19 @@ mod tests {
             &PathBuf::from("./tests/namespace-imports/"),
             &Default::default(),
         );
+        let unused_exports = find_unused_exports(&analyzed_package);
+        assert_eq!(unused_exports.len(), 0);
+    }
+
+    #[test]
+    fn default_import() {
+        let analyzed_package = analyze_package(
+            &PathBuf::from("./tests/default-imports/"),
+            &Default::default(),
+        );
+        println!("{analyzed_package:#?}");
+        assert_eq!(analyzed_package.modules.len(), 2);
+
         let unused_exports = find_unused_exports(&analyzed_package);
         assert_eq!(unused_exports.len(), 0);
     }

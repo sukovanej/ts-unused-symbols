@@ -11,7 +11,7 @@ use swc_ecma_parser::{error::Error, parse_file_as_module, Syntax, TsConfig};
 
 use crate::analyze_symbols_usage::SymbolsUsageAnalyzer;
 use crate::analyzed_module::AnalyzedModule;
-use crate::module_symbols::{merge_iter, Import, ImportedSymbol, ModuleSymbols};
+use crate::module_symbols::{merge_iter, Export, Import, ImportedSymbol, ModuleSymbols};
 
 pub fn analyze_file(path: &Path) -> AnalyzedModule<String> {
     let cm: Lrc<SourceMap> = Default::default();
@@ -68,7 +68,7 @@ fn analyze_module_decl(decl: ModuleDecl) -> ModuleSymbols<String> {
             merge_iter(decl.specifiers.iter().map(analyze_export_specifier))
         }
         ModuleDecl::ExportDefaultDecl(_) => unimplemented!(),
-        ModuleDecl::ExportDefaultExpr(_) => unimplemented!(),
+        ModuleDecl::ExportDefaultExpr(_) => ModuleSymbols::new_export(Export::Default),
         ModuleDecl::ExportAll(decl) => ModuleSymbols::new_all_export(decl.src.value.to_string()),
         ModuleDecl::TsImportEquals(_) => ModuleSymbols::default(), // TODO
         ModuleDecl::TsExportAssignment(_) => unimplemented!(),
@@ -126,7 +126,7 @@ mod tests {
 
     use crate::{
         analyze_file::analyze_file,
-        module_symbols::{Import, ImportedSymbol, Export},
+        module_symbols::{Export, Import, ImportedSymbol},
     };
 
     #[test]

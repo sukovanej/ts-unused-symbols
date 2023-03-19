@@ -49,6 +49,13 @@ pub enum Import {
 }
 
 impl ModuleSymbols<String> {
+    pub fn new_export(export: Export<String>) -> Self {
+        Self {
+            exports: HashSet::from([export]),
+            ..Default::default()
+        }
+    }
+
     pub fn new_imported_symbol(imported_symbol: ImportedSymbol<String>) -> Self {
         Self {
             imports: HashSet::from([imported_symbol]),

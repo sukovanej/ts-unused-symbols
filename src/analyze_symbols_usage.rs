@@ -38,7 +38,7 @@ impl SymbolsUsageAnalyzer {
             ModuleDecl::ExportDecl(decl) => self.analyze_decl(decl.decl),
             ModuleDecl::ExportNamed(_) => Default::default(),
             ModuleDecl::ExportDefaultDecl(_) => unimplemented!(),
-            ModuleDecl::ExportDefaultExpr(_) => unimplemented!(),
+            ModuleDecl::ExportDefaultExpr(decl) => self.analyze_expr(*decl.expr),
             ModuleDecl::ExportAll(_) => Default::default(),
             ModuleDecl::TsImportEquals(_) => Default::default(),
             ModuleDecl::TsExportAssignment(_) => unimplemented!(),

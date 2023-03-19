@@ -14,7 +14,7 @@ use regex::Regex;
 
 use crate::{
     analyze_package::{analyze_package, AnalyzeOptions},
-    find_unused_exports::find_unused_exports,
+    find_unused_exports::{find_unused_exports, Symbol},
     tsconfig::try_load_tsconfig,
 };
 
@@ -78,7 +78,13 @@ fn print_unsed_exports(unused_exports: &[UnusedExport]) {
                 path.to_str().unwrap(),
                 exports
                     .iter()
-                    .map(|e| format!(" - \x1b[93m{}\x1b[0m", e.symbol))
+                    .map(|e| format!(
+                        " - \x1b[93m{}\x1b[0m",
+                        match &e.symbol {
+                            Symbol::Symbol(s) => s.to_owned(),
+                            Symbol::Default => "DEFAULT".into(),
+                        }
+                    ))
                     .collect::<Vec<String>>()
                     .join("\n"),
             )

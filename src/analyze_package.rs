@@ -127,7 +127,8 @@ fn traverse_path(path: &Path, exclude_patterns: &[Regex]) -> Vec<PathBuf> {
                 continue;
             }
 
-            if vec!["ts"].contains(&extension.as_str()) {
+            let possible_extensions = vec!["ts", "tsx", "js", "jsx", "mjs", "mts"];
+            if possible_extensions.contains(&extension.as_str()) {
                 result.push(path);
             }
         }
