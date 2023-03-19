@@ -1,9 +1,11 @@
 mod analyze_file;
 mod analyze_package;
+mod analyze_plan;
 mod analyze_symbols_usage;
 mod analyzed_module;
 mod find_unused_exports;
 mod module_symbols;
+mod package_json;
 mod tsconfig;
 
 use std::{collections::HashMap, path::PathBuf};
@@ -12,11 +14,9 @@ use clap::Parser;
 use find_unused_exports::UnusedExport;
 use regex::Regex;
 
-use crate::{
-    analyze_package::{analyze_package, AnalyzeOptions},
-    find_unused_exports::{find_unused_exports, Symbol},
-    tsconfig::try_load_tsconfig,
-};
+use crate::analyze_package::{analyze_package, AnalyzeOptions, AnalyzedPackage};
+use crate::analyze_plan::prepare_analyze_plan;
+use crate::find_unused_exports::{find_unused_exports, Symbol};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -35,9 +35,7 @@ fn main() {
     let args = Args::parse();
     let path = PathBuf::from(args.path);
 
-    let tsconfig = try_load_tsconfig(&path);
-
-    let mut exclude_patterns: Vec<Regex> = vec!["node_modules", ".d.ts$"]
+    let mut exclude_patterns: Vec<Regex> = vec!["node_modules"]
         .iter()
         .map(|e| Regex::new(e).unwrap())
         .collect();
@@ -46,18 +44,41 @@ fn main() {
     let mut ignore_patterns = vec![Regex::new("node_modules").unwrap()];
     ignore_patterns.extend(args.ignore_patterns.iter().map(|p| Regex::new(p).unwrap()));
 
-    let options = AnalyzeOptions::new(ignore_patterns, exclude_patterns, tsconfig);
+    let options = AnalyzeOptions::new(ignore_patterns, exclude_patterns);
 
-    let analyzed_package = analyze_package(&path, &options);
-    let unused_exports = find_unused_exports(&analyzed_package);
+    let analyze_plan = prepare_analyze_plan(&path);
+
+    println!("Analyze plan: {analyze_plan:#?}");
+
+    let analyzed_packages = analyze_plan
+        .packages
+        .iter()
+        .map(|package| {
+            analyze_package(
+                &package.path,
+                &package.tsconfig,
+                &options,
+                &analyze_plan.monorepo_import_mapping,
+            )
+        })
+        .collect::<Vec<AnalyzedPackage>>();
+
+    println!("Packages parsed");
+
+    let unused_exports = find_unused_exports(&analyzed_packages);
     let final_unused_exports = filter_ignored(&unused_exports, &options.ignore_patterns);
     let number_of_ignored = unused_exports.len() - final_unused_exports.len();
+    let number_of_files = analyzed_packages
+        .iter()
+        .map(|p| p.modules.len())
+        .sum::<usize>();
 
     print_unsed_exports(&final_unused_exports);
 
-    println!("\n - {} unused exports", final_unused_exports.len());
+    println!();
+    println!(" - {} unused exports", final_unused_exports.len());
     println!(" - {number_of_ignored} unused exports ignored in the report",);
-    println!(" - {} files analyzed", analyzed_package.modules.len());
+    println!(" - {number_of_files} files analyzed");
 }
 
 fn filter_ignored(unused_exports: &[UnusedExport], ignore_patterns: &[Regex]) -> Vec<UnusedExport> {

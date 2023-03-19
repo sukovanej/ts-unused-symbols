@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use regex::Regex;
 
 use crate::analyze_file::analyze_file;
+use crate::analyze_plan::MonorepoImportMapping;
 use crate::analyzed_module::AnalyzedModule;
 use crate::module_symbols::{Export, ImportedSymbol, ModuleSymbols, Reexport};
 use crate::tsconfig::TsConfig;
@@ -20,31 +21,40 @@ pub struct AnalyzedPackage {
 pub struct AnalyzeOptions {
     pub ignore_patterns: Vec<Regex>,
     pub exclude_patterns: Vec<Regex>,
-    pub tsconfig: Option<TsConfig>,
 }
 
 impl AnalyzeOptions {
-    pub fn new(
-        ignore_patterns: Vec<Regex>,
-        exclude_patterns: Vec<Regex>,
-        tsconfig: Option<TsConfig>,
-    ) -> Self {
+    pub fn new(ignore_patterns: Vec<Regex>, exclude_patterns: Vec<Regex>) -> Self {
         Self {
             ignore_patterns,
             exclude_patterns,
-            tsconfig,
         }
     }
 }
 
-pub fn analyze_package(path: &Path, options: &AnalyzeOptions) -> AnalyzedPackage {
-    let paths = traverse_path(path, &options.exclude_patterns);
+pub fn analyze_package(
+    path: &Path,
+    tsconfig: &Option<TsConfig>,
+    options: &AnalyzeOptions,
+    monorepo_import_mapping: &MonorepoImportMapping,
+) -> AnalyzedPackage {
+    let build_path = tsconfig
+        .clone()
+        .and_then(|c| c.compiler_options)
+        .and_then(|c| c.out_dir)
+        .map(|c| {
+            let mut path = path.to_owned();
+            path.push(c);
+            path.canonicalize().unwrap()
+        });
+
+    let paths = traverse_path(path, &options.exclude_patterns, &build_path);
     let modules = paths
         .into_iter()
         .map(|p| {
             (
                 p.to_owned(),
-                analyze_module_with_path_resolve(&p, &options.tsconfig, path),
+                analyze_module_with_path_resolve(&p, tsconfig, path, monorepo_import_mapping),
             )
         })
         .collect();
@@ -59,6 +69,7 @@ fn analyze_module_with_path_resolve(
     path: &Path,
     tsconfig: &Option<TsConfig>,
     package_path: &Path,
+    monorepo_import_mapping: &MonorepoImportMapping,
 ) -> AnalyzedModule<PathBuf> {
     let analyzed_file = analyze_file(path);
 
@@ -73,13 +84,22 @@ fn analyze_module_with_path_resolve(
                 .filter_map(|export| match export {
                     Export::Default => Some(Export::Default),
                     Export::Symbol(s) => Some(Export::Symbol(s.to_owned())),
-                    Export::AllFrom(s) => {
-                        resolve_import_path(path, s, tsconfig, package_path).map(Export::AllFrom)
-                    }
-                    Export::Reexport(e) => {
-                        resolve_import_path(path, &e.from, tsconfig, package_path)
-                            .map(|from| Export::Reexport(Reexport { from }))
-                    }
+                    Export::AllFrom(s) => resolve_import_path(
+                        path,
+                        s,
+                        tsconfig,
+                        package_path,
+                        monorepo_import_mapping,
+                    )
+                    .map(Export::AllFrom),
+                    Export::Reexport(e) => resolve_import_path(
+                        path,
+                        &e.from,
+                        tsconfig,
+                        package_path,
+                        monorepo_import_mapping,
+                    )
+                    .map(|from| Export::Reexport(Reexport { from })),
                 })
                 .collect(),
             imports: analyzed_file
@@ -87,11 +107,16 @@ fn analyze_module_with_path_resolve(
                 .imports
                 .iter()
                 .filter_map(|import| {
-                    resolve_import_path(path, &import.from, tsconfig, package_path).map(|from| {
-                        ImportedSymbol {
-                            symbols: import.symbols.clone(),
-                            from,
-                        }
+                    resolve_import_path(
+                        path,
+                        &import.from,
+                        tsconfig,
+                        package_path,
+                        monorepo_import_mapping,
+                    )
+                    .map(|from| ImportedSymbol {
+                        symbols: import.symbols.clone(),
+                        from,
                     })
                 })
                 .collect(),
@@ -99,7 +124,11 @@ fn analyze_module_with_path_resolve(
     }
 }
 
-fn traverse_path(path: &Path, exclude_patterns: &[Regex]) -> Vec<PathBuf> {
+fn traverse_path(
+    path: &Path,
+    exclude_patterns: &[Regex],
+    out_dir: &Option<PathBuf>,
+) -> Vec<PathBuf> {
     let mut result = vec![];
     let dir = fs::read_dir(path).unwrap();
 
@@ -108,6 +137,11 @@ fn traverse_path(path: &Path, exclude_patterns: &[Regex]) -> Vec<PathBuf> {
 
         let file_type = file.file_type().unwrap();
         let path = file.path().canonicalize().unwrap();
+
+        if out_dir.as_ref().map(|i| i == &path).unwrap_or(false) {
+            continue;
+        }
+
         let path_str = path.to_str().unwrap();
 
         if file_type.is_dir() {
@@ -115,7 +149,7 @@ fn traverse_path(path: &Path, exclude_patterns: &[Regex]) -> Vec<PathBuf> {
                 continue;
             }
 
-            result.extend(traverse_path(&file.path(), exclude_patterns));
+            result.extend(traverse_path(&file.path(), exclude_patterns, out_dir));
         } else if file_type.is_file() {
             let extension = file
                 .path()
@@ -142,7 +176,24 @@ fn resolve_import_path(
     import_str: &str,
     tsconfig: &Option<TsConfig>,
     package_base_path: &Path,
+    monorepo_import_mapping: &MonorepoImportMapping,
 ) -> Option<PathBuf> {
+    for (monorepo_name, package_path) in monorepo_import_mapping.iter() {
+        if monorepo_name == import_str {
+            let mut path = package_path.to_owned();
+            path.push(PathBuf::from(import_str[monorepo_name.len()..].to_owned()));
+            println!("Using monorepo name {path:?}");
+            return Some(path);
+        }
+
+        if import_str.starts_with(monorepo_name) {
+            let mut path = package_path.to_owned();
+            path.push(PathBuf::from(import_str[monorepo_name.len()..].to_owned()));
+            println!("Using monorepo name {path:?}");
+            return Some(path);
+        }
+    }
+
     let mut path = current_path.to_owned();
     path.pop();
 
@@ -198,6 +249,8 @@ mod tests {
     fn namespace_imports() {
         let analyzed_module = analyze_package(
             &PathBuf::from("./tests/namespace-imports/"),
+            &Default::default(),
+            &Default::default(),
             &Default::default(),
         );
         assert_eq!(analyzed_module.modules.len(), 2);

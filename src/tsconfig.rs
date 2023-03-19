@@ -15,6 +15,7 @@ pub struct TsConfig {
 #[serde(rename_all = "camelCase")]
 pub struct TsConfigCompilerOptions {
     pub base_url: Option<String>,
+    pub out_dir: Option<PathBuf>,
 }
 
 pub fn try_load_tsconfig(path: &Path) -> Option<TsConfig> {
