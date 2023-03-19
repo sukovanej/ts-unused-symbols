@@ -1,5 +1,6 @@
 mod analyze_file;
 mod analyze_package;
+mod analyze_symbols_usage;
 mod analyzed_module;
 mod find_unused_exports;
 mod module_symbols;
@@ -9,7 +10,10 @@ use std::path::PathBuf;
 
 use clap::Parser;
 
-use crate::{analyze_package::analyze_package, find_unused_exports::find_unused_exports, tsconfig::try_load_tsconfig};
+use crate::{
+    analyze_package::analyze_package, find_unused_exports::find_unused_exports,
+    tsconfig::try_load_tsconfig,
+};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -24,7 +28,7 @@ fn main() {
 
     let tsconfig = try_load_tsconfig(&path);
 
-    println!("{:?}", tsconfig);
+    println!("tsconfig: {:?}", tsconfig);
 
     let analyzed_package = analyze_package(&path, &tsconfig);
     let unused_symbols = find_unused_exports(&analyzed_package)

@@ -1,11 +1,20 @@
-use std::{collections::HashSet, hash::Hash, path::PathBuf};
+use std::{collections::HashSet, hash::Hash};
 
 use swc_ecma_ast::Ident;
 
 #[derive(Debug, Clone, Default)]
 pub struct ModuleSymbols<P> {
+    pub usages: HashSet<Usage>,
     pub exports: HashSet<Export<P>>,
     pub imports: HashSet<ImportedSymbol<P>>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Usage {
+    Symbol(String),
+
+    // (symbol, namespace alias)
+    Namespace(String, String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -29,9 +38,14 @@ pub struct ImportedSymbol<P> {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Import {
+    // import { <String> } from <from>;
     Named(String),
-    Default,
-    Namespace,
+
+    // import <String> from <from>;
+    Default(String),
+
+    // import * as <String> from <from>;
+    Namespace(String),
 }
 
 impl ModuleSymbols<String> {
@@ -67,7 +81,14 @@ impl ModuleSymbols<String> {
         let mut imports = self.imports;
         imports.extend(analyzed_module.imports);
 
-        Self { exports, imports }
+        let mut usages = self.usages;
+        usages.extend(analyzed_module.usages);
+
+        Self {
+            exports,
+            imports,
+            usages,
+        }
     }
 }
 

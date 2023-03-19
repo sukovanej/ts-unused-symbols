@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::Path;
 
 use swc_common::sync::Lrc;
@@ -8,11 +9,9 @@ use swc_ecma_ast::{
 use swc_ecma_ast::{EsVersion, ImportSpecifier};
 use swc_ecma_parser::{error::Error, parse_file_as_module, Syntax, TsConfig};
 
-use crate::module_symbols::{Import, ImportedSymbol};
-use crate::{
-    analyzed_module::AnalyzedModule,
-    module_symbols::{merge_iter, ModuleSymbols},
-};
+use crate::analyze_symbols_usage::SymbolsUsageAnalyzer;
+use crate::analyzed_module::AnalyzedModule;
+use crate::module_symbols::{merge_iter, Import, ImportedSymbol, ModuleSymbols};
 
 pub fn analyze_file(path: &Path) -> AnalyzedModule<String> {
     let cm: Lrc<SourceMap> = Default::default();
@@ -27,9 +26,19 @@ pub fn analyze_file(path: &Path) -> AnalyzedModule<String> {
         None,
         &mut recovered_errors,
     )
-    .expect(&format!("Failed on {path:?}"));
+    .unwrap_or_else(|_| panic!("Failed on {path:?}"));
 
-    let symbols = analyze_module_symbols(module);
+    let mut symbols = analyze_module_symbols(module.clone());
+    let symbol_usage_analyze = SymbolsUsageAnalyzer::new(
+        symbols
+            .imports
+            .iter()
+            .flat_map(|import| import.symbols.clone())
+            .collect::<HashSet<Import>>(),
+    );
+    let symbols_usage = symbol_usage_analyze.analyze_symbols_usage(module);
+    symbols.usages = symbols_usage;
+
     AnalyzedModule::new(path.to_str().unwrap().to_string(), symbols)
 }
 
@@ -82,8 +91,8 @@ fn analyze_export_specifier(decl: &ExportSpecifier) -> ModuleSymbols<String> {
 fn analyze_import_specifier(decl: ImportSpecifier) -> Import {
     match decl {
         ImportSpecifier::Named(i) => Import::Named(i.local.sym.to_string()),
-        ImportSpecifier::Default(_) => Import::Default,
-        ImportSpecifier::Namespace(_) => Import::Namespace,
+        ImportSpecifier::Default(i) => Import::Default(i.local.sym.to_string()),
+        ImportSpecifier::Namespace(i) => Import::Namespace(i.local.sym.to_string()),
     }
 }
 

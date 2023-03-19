@@ -38,7 +38,7 @@ fn get_all_imports(analyzed_package: &AnalyzedPackage) -> HashSet<(String, PathB
     analyzed_package
         .modules
         .iter()
-        .flat_map(|(path, module)| {
+        .flat_map(|(_, module)| {
             module
                 .symbols
                 .imports
@@ -47,7 +47,9 @@ fn get_all_imports(analyzed_package: &AnalyzedPackage) -> HashSet<(String, PathB
                     import
                         .symbols
                         .iter()
-                        .flat_map(|symbol| resolve_import(symbol, &import.from, analyzed_package))
+                        .flat_map(|symbol| {
+                            resolve_import(symbol, &import.from, &module.symbols, analyzed_package)
+                        })
                         .collect::<HashSet<(String, PathBuf)>>()
                 })
                 .collect::<HashSet<(String, PathBuf)>>()
@@ -58,6 +60,7 @@ fn get_all_imports(analyzed_package: &AnalyzedPackage) -> HashSet<(String, PathB
 fn resolve_import(
     import: &Import,
     from: &Path,
+    module_symbols: &ModuleSymbols<PathBuf>,
     analyzed_package: &AnalyzedPackage,
 ) -> HashSet<(String, PathBuf)> {
     let imports = match import {
@@ -72,7 +75,7 @@ fn resolve_import(
                             if s == exported_symbol {
                                 break;
                             }
-                        },
+                        }
                         Export::Reexport(r) => todo!("{r:?}"),
                         Export::AllFrom(from) => {
                             let module = analyzed_package.modules.get(from).unwrap();
@@ -80,16 +83,30 @@ fn resolve_import(
                             if module.exports_symbol(s.as_ref()) {
                                 resolved.insert((s.to_owned(), from.to_owned()));
                             }
-                        },
+                        }
                         Export::Default => todo!("default export"),
                     }
                 }
             }
 
             resolved
-        },
-        Import::Default => HashSet::new(),
-        Import::Namespace => HashSet::new(),
+        }
+        Import::Default(i) => HashSet::new(), // TODO
+        Import::Namespace(alias) => module_symbols
+            .usages
+            .iter()
+            .filter_map(|usage| match usage {
+                crate::module_symbols::Usage::Namespace(symbol, current_alias) => {
+                    if current_alias == alias {
+                        Some(symbol)
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            })
+            .map(|symbol| (symbol.to_owned(), from.to_owned()))
+            .collect(),
     };
 
     imports
@@ -132,6 +149,13 @@ mod tests {
     fn reexported_symbols() {
         let analyzed_package =
             analyze_package(&PathBuf::from("./tests/reexported-symbols/"), &None);
+        let unused_exports = find_unused_exports(&analyzed_package);
+        assert_eq!(unused_exports.len(), 0);
+    }
+
+    #[test]
+    fn namespace_import() {
+        let analyzed_package = analyze_package(&PathBuf::from("./tests/namespace-imports/"), &None);
         let unused_exports = find_unused_exports(&analyzed_package);
         assert_eq!(unused_exports.len(), 0);
     }

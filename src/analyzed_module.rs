@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use crate::module_symbols::{ModuleSymbols, Export};
+use crate::module_symbols::{Export, ModuleSymbols};
 
 #[derive(Clone, Debug)]
 pub struct AnalyzedModule<P> {
@@ -17,16 +17,13 @@ impl AnalyzedModule<String> {
 impl<P> AnalyzedModule<P> {
     pub fn exports_symbol(&self, symbol: &str) -> bool {
         for s in &self.symbols.exports {
-            match s {
-                Export::Symbol(s) => {
-                    if s == symbol {
-                        return true;
-                    }
-                },
-                _ => (),
+            if let Export::Symbol(s) = s {
+                if s == symbol {
+                    return true;
+                }
             }
         }
 
-        return false;
+        false
     }
 }

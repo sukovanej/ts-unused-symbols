@@ -1,17 +1,20 @@
-use std::{path::{Path, PathBuf}, fs};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TsConfig {
-    pub compiler_options: Option<TsConfigCompilerOptions>
+    pub compiler_options: Option<TsConfigCompilerOptions>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct TsConfigCompilerOptions {
-    pub base_url: Option<String>
+    pub base_url: Option<String>,
 }
 
 pub fn try_load_tsconfig(path: &Path) -> Option<TsConfig> {

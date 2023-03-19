@@ -23,7 +23,12 @@ pub fn analyze_package(path: &Path, tsconfig: &Option<TsConfig>) -> AnalyzedPack
     let paths = traverse_path(&source_files_path);
     let modules = paths
         .into_iter()
-        .map(|p| (p.to_owned(), analyze_module_with_path_resolve(&p, tsconfig, path)))
+        .map(|p| {
+            (
+                p.to_owned(),
+                analyze_module_with_path_resolve(&p, tsconfig, path),
+            )
+        })
         .collect();
 
     AnalyzedPackage {
@@ -42,6 +47,7 @@ fn analyze_module_with_path_resolve(
     AnalyzedModule {
         path: path.canonicalize().unwrap(),
         symbols: ModuleSymbols {
+            usages: analyzed_file.symbols.usages,
             exports: analyzed_file
                 .symbols
                 .exports
@@ -50,10 +56,10 @@ fn analyze_module_with_path_resolve(
                     Export::Default => Some(Export::Default),
                     Export::Symbol(s) => Some(Export::Symbol(s.to_owned())),
                     Export::AllFrom(s) => {
-                        resolve_import_path(&path, s, tsconfig, package_path).map(Export::AllFrom)
+                        resolve_import_path(path, s, tsconfig, package_path).map(Export::AllFrom)
                     }
                     Export::Reexport(e) => {
-                        resolve_import_path(&path, &e.from, tsconfig, package_path)
+                        resolve_import_path(path, &e.from, tsconfig, package_path)
                             .map(|from| Export::Reexport(Reexport { from }))
                     }
                 })
@@ -63,7 +69,7 @@ fn analyze_module_with_path_resolve(
                 .imports
                 .iter()
                 .filter_map(|import| {
-                    resolve_import_path(&path, &import.from, tsconfig, package_path).map(|from| {
+                    resolve_import_path(path, &import.from, tsconfig, package_path).map(|from| {
                         ImportedSymbol {
                             symbols: import.symbols.clone(),
                             from,
@@ -136,9 +142,11 @@ fn resolve_import_path(
         return None;
     }
 
-    Some(path.canonicalize().expect(&format!(
-        "Failed to resolve {} in {}",
-        import_str.to_owned(),
-        current_path.to_str().unwrap()
-    )))
+    Some(path.canonicalize().unwrap_or_else(|_| {
+        panic!(
+            "Failed to resolve {} in {}",
+            import_str.to_owned(),
+            current_path.to_str().unwrap()
+        )
+    }))
 }
