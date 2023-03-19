@@ -91,7 +91,7 @@ fn resolve_import(
 
             resolved
         }
-        Import::Default(i) => HashSet::new(), // TODO
+        Import::Default(_) => HashSet::new(), // TODO
         Import::Namespace(alias) => module_symbols
             .usages
             .iter()
@@ -140,22 +140,30 @@ mod tests {
 
     #[test]
     fn relative_imports() {
-        let analyzed_package = analyze_package(&PathBuf::from("./tests/relative-imports/"), &None);
+        let analyzed_package = analyze_package(
+            &PathBuf::from("./tests/relative-imports/"),
+            &Default::default(),
+        );
         let unused_exports = find_unused_exports(&analyzed_package);
         assert_eq!(unused_exports.len(), 0);
     }
 
     #[test]
     fn reexported_symbols() {
-        let analyzed_package =
-            analyze_package(&PathBuf::from("./tests/reexported-symbols/"), &None);
+        let analyzed_package = analyze_package(
+            &PathBuf::from("./tests/reexported-symbols/"),
+            &Default::default(),
+        );
         let unused_exports = find_unused_exports(&analyzed_package);
         assert_eq!(unused_exports.len(), 0);
     }
 
     #[test]
     fn namespace_import() {
-        let analyzed_package = analyze_package(&PathBuf::from("./tests/namespace-imports/"), &None);
+        let analyzed_package = analyze_package(
+            &PathBuf::from("./tests/namespace-imports/"),
+            &Default::default(),
+        );
         let unused_exports = find_unused_exports(&analyzed_package);
         assert_eq!(unused_exports.len(), 0);
     }

@@ -3,6 +3,8 @@ use std::fmt::Debug;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use regex::Regex;
+
 use crate::analyze_file::analyze_file;
 use crate::analyzed_module::AnalyzedModule;
 use crate::module_symbols::{Export, ImportedSymbol, ModuleSymbols, Reexport};
@@ -14,19 +16,29 @@ pub struct AnalyzedPackage {
     pub modules: HashMap<PathBuf, AnalyzedModule<PathBuf>>,
 }
 
-// pub struct AnalyzeOptions {}
+#[derive(Debug, Default)]
+pub struct AnalyzeOptions {
+    ignore_patterns: Vec<Regex>,
+    tsconfig: Option<TsConfig>,
+}
 
-pub fn analyze_package(path: &Path, tsconfig: &Option<TsConfig>) -> AnalyzedPackage {
-    let mut source_files_path = path.to_owned();
-    source_files_path.push("src");
+impl AnalyzeOptions {
+    pub fn new(ignore_patterns: Vec<Regex>, tsconfig: Option<TsConfig>) -> Self {
+        Self {
+            ignore_patterns,
+            tsconfig,
+        }
+    }
+}
 
-    let paths = traverse_path(&source_files_path);
+pub fn analyze_package(path: &Path, options: &AnalyzeOptions) -> AnalyzedPackage {
+    let paths = traverse_path(path, &options.ignore_patterns);
     let modules = paths
         .into_iter()
         .map(|p| {
             (
                 p.to_owned(),
-                analyze_module_with_path_resolve(&p, tsconfig, path),
+                analyze_module_with_path_resolve(&p, &options.tsconfig, path),
             )
         })
         .collect();
@@ -81,7 +93,7 @@ fn analyze_module_with_path_resolve(
     }
 }
 
-fn traverse_path(path: &Path) -> Vec<PathBuf> {
+fn traverse_path(path: &Path, ignore_patterns: &[Regex]) -> Vec<PathBuf> {
     let mut result = vec![];
     let dir = fs::read_dir(path).unwrap();
 
@@ -91,7 +103,7 @@ fn traverse_path(path: &Path) -> Vec<PathBuf> {
         let file_type = file.file_type().unwrap();
 
         if file_type.is_dir() {
-            result.extend(traverse_path(&file.path()));
+            result.extend(traverse_path(&file.path(), ignore_patterns));
         } else if file_type.is_file() {
             let extension = file
                 .path()
@@ -99,8 +111,16 @@ fn traverse_path(path: &Path) -> Vec<PathBuf> {
                 .map(|s| s.to_str().unwrap().to_owned())
                 .unwrap_or("".to_string());
 
+            let path = file.path().canonicalize().unwrap();
+            let path_str = path.to_str().unwrap();
+
+            if ignore_patterns.iter().any(|r| r.is_match(path_str)) {
+                println!("Ignoring {path:?}");
+                continue;
+            }
+
             if vec!["ts"].contains(&extension.as_str()) {
-                result.push(file.path().canonicalize().unwrap());
+                result.push(path);
             }
         }
     }

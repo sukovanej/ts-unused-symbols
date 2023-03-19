@@ -1009,6 +1009,7 @@ name = "ts-unused-symbols"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "regex",
  "serde",
  "serde_json",
  "swc_common",

@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use swc_ecma_ast::{
     BlockStmt, BlockStmtOrExpr, CallExpr, Callee, Class, ClassMember, Decl, Expr, Function,
-    MemberExpr, MemberProp, Module, ModuleDecl, ModuleItem, Pat, Prop, PropOrSpread, Stmt,
+    MemberExpr, MemberProp, Module, ModuleDecl, ModuleItem, Prop, PropOrSpread, Stmt,
 };
 
 use crate::module_symbols::{Import, Usage};
@@ -34,7 +34,7 @@ impl SymbolsUsageAnalyzer {
 
     fn analyze_module_decl(&self, decl: ModuleDecl) -> HashSet<Usage> {
         match decl {
-            ModuleDecl::Import(decl) => HashSet::default(),
+            ModuleDecl::Import(_) => HashSet::default(),
             ModuleDecl::ExportDecl(decl) => self.analyze_decl(decl.decl),
             ModuleDecl::ExportNamed(_) => Default::default(),
             ModuleDecl::ExportDefaultDecl(_) => unimplemented!(),
@@ -143,7 +143,7 @@ impl SymbolsUsageAnalyzer {
             Expr::Seq(expr) => {
                 merge_usages_iter(expr.exprs.into_iter().map(|e| self.analyze_expr(*e)))
             }
-            Expr::Ident(i) => HashSet::default(),
+            Expr::Ident(_) => HashSet::default(),
             Expr::Lit(_) => HashSet::default(),
             Expr::Tpl(expr) => {
                 merge_usages_iter(expr.exprs.into_iter().map(|e| self.analyze_expr(*e)))
@@ -217,7 +217,7 @@ impl SymbolsUsageAnalyzer {
     fn analyze_prop_or_spread(&self, expr: PropOrSpread) -> HashSet<Usage> {
         match expr {
             PropOrSpread::Prop(p) => match *p {
-                Prop::Shorthand(i) => HashSet::default(),
+                Prop::Shorthand(_) => HashSet::default(),
                 Prop::KeyValue(e) => self.analyze_expr(*e.value),
                 Prop::Assign(e) => self.analyze_expr(*e.value),
                 Prop::Getter(e) => self.analyze_option(|e| self.analyze_block_stmt(e), e.body),
@@ -254,15 +254,11 @@ impl SymbolsUsageAnalyzer {
                     .into_iter()
                     .filter_map(|decl| decl.init.map(|i| self.analyze_expr(*i))),
             ),
-            Decl::TsEnum(e) => HashSet::default(),      // TODO
-            Decl::TsInterface(i) => HashSet::default(), // TODO
-            Decl::TsTypeAlias(t) => HashSet::default(), // TODO
-            Decl::TsModule(m) => HashSet::default(),    // TODO
+            Decl::TsEnum(_) => HashSet::default(),      // TODO
+            Decl::TsInterface(_) => HashSet::default(), // TODO
+            Decl::TsTypeAlias(_) => HashSet::default(), // TODO
+            Decl::TsModule(_) => HashSet::default(),    // TODO
         }
-    }
-
-    fn analyze_pattern(&self, pat: Pat) -> HashSet<Usage> {
-        todo!("{pat:#?}")
     }
 }
 
