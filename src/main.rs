@@ -48,10 +48,13 @@ fn main() {
     let analyzed_package = analyze_package(&path, &options);
     let unused_exports = find_unused_exports(&analyzed_package);
     let final_unused_exports = filter_ignored(&unused_exports, &options.ignore_patterns);
+    let number_of_ignored = unused_exports.len() - final_unused_exports.len();
+
     print_unsed_exports(&final_unused_exports);
 
-    let number_of_ignored = unused_exports.len() - final_unused_exports.len();
-    println!("{number_of_ignored} unused exports ignored in the report");
+    println!("\n - {} unused exports", unused_exports.len());
+    println!(" - {number_of_ignored} unused exports ignored in the report",);
+    println!(" - {} files analyzed", analyzed_package.modules.len());
 }
 
 fn filter_ignored(unused_exports: &[UnusedExport], ignore_patterns: &[Regex]) -> Vec<UnusedExport> {
@@ -84,7 +87,6 @@ fn print_unsed_exports(unused_exports: &[UnusedExport]) {
         .join("\n");
 
     println!("{unused_exports_stdout}");
-    println!("Found {} unused exports", unused_exports.len());
 }
 
 fn group_by_path(unused_exports: &[UnusedExport]) -> HashMap<PathBuf, Vec<UnusedExport>> {

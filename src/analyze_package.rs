@@ -163,7 +163,10 @@ fn resolve_import_path(
         path.push(PathBuf::from("index"));
     }
 
-    path.set_extension("ts");
+    if !path.exists() {
+        let filename = path.file_name().unwrap().to_str().unwrap().to_owned();
+        path.set_file_name(format!("{filename}.ts")); // TODO: try ts, tsx, js, jsx, mjs, mts extensions
+    }
 
     if !path.exists() {
         //println!("{import_str:?} not found");
