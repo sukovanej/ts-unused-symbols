@@ -168,7 +168,7 @@ fn resolve_import_path(
     while !path.exists() && !possible_extensions.is_empty() {
         let extension = possible_extensions.pop().unwrap();
         let filename = path.file_name().unwrap().to_str().unwrap().to_owned();
-        path.set_file_name(format!("{filename}.{extension}")); // TODO: try  extensions
+        path.set_file_name(format!("{filename}.{extension}"));
     }
 
     if !path.exists() {
