@@ -29,7 +29,7 @@ pub fn analyze_file(path: PathBuf) -> AnalyzedModule<String> {
         None,
         &mut recovered_errors,
     )
-    .unwrap();
+    .expect(&format!("Failed on {path:?}"));
 
     let symbols = analyze_module_symbols(module);
     AnalyzedModule::new(path.to_str().unwrap().to_string(), symbols)
