@@ -1,5 +1,6 @@
 mod analyze_file;
 mod analyze_package;
+mod resolve_import_path;
 mod analyze_plan;
 mod analyze_symbols_usage;
 mod analyzed_module;
