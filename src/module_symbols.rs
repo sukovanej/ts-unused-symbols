@@ -11,7 +11,7 @@ pub struct ModuleSymbols<P> {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Usage {
-    Symbol(String),
+    //Symbol(String),
 
     // (symbol, namespace alias)
     Namespace(String, String),
@@ -20,7 +20,6 @@ pub enum Usage {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Export<P> {
     Symbol(String),
-    Reexport(Reexport<P>),
     AllFrom(P),
     Default,
 }

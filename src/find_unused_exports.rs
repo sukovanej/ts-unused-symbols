@@ -78,32 +78,8 @@ fn resolve_import(
 ) -> HashSet<(Symbol, PathBuf)> {
     let imports = match import {
         Import::Named(s) => {
-            let mut resolved = HashSet::from([(Symbol::Symbol(s.to_owned()), from.to_owned())]);
-            let imported_module = modules.get(from);
-
-            if let Some(imported_module) = imported_module {
-                for export in &imported_module.symbols.exports {
-                    match export {
-                        Export::Symbol(exported_symbol) => {
-                            if s == exported_symbol {
-                                break;
-                            }
-                        }
-                        Export::Reexport(r) => todo!("{r:?}"),
-                        Export::AllFrom(from) => {
-                            let module = modules
-                                .get(from)
-                                .unwrap_or_else(|| panic!("Couldnt find {from:?}"));
-
-                            if module.exports_symbol(s.as_ref()) {
-                                resolved.insert((Symbol::Symbol(s.to_owned()), from.to_owned()));
-                            }
-                        }
-                        Export::Default => {}
-                    }
-                }
-            }
-
+            let mut resolved = try_follow_reexports(s, from, modules);
+            resolved.insert((Symbol::Symbol(s.to_owned()), from.to_owned()));
             resolved
         }
         Import::Default(_) => HashSet::from([(Symbol::Default, from.to_owned())]),
@@ -118,7 +94,6 @@ fn resolve_import(
                         None
                     }
                 }
-                _ => None,
             })
             .map(|symbol| (Symbol::Symbol(symbol.to_owned()), from.to_owned()))
             .collect(),
@@ -137,13 +112,46 @@ fn get_all_exports(modules: &Modules) -> HashSet<(Symbol, PathBuf)> {
                 .iter()
                 .filter_map(|export| match export {
                     Export::Default => None,
-                    Export::Reexport(_) => None,
                     Export::AllFrom(_) => None,
                     Export::Symbol(s) => Some((Symbol::Symbol(s.to_owned()), path.to_owned())),
                 })
                 .collect::<HashSet<(Symbol, PathBuf)>>()
         })
         .collect()
+}
+
+fn try_follow_reexports(
+    symbol: &str,
+    from: &Path,
+    modules: &Modules,
+) -> HashSet<(Symbol, PathBuf)> {
+    let mut resolved = HashSet::new();
+    let imported_module = modules.get(from);
+
+    if let Some(imported_module) = imported_module {
+        for export in &imported_module.symbols.exports {
+            match export {
+                Export::Symbol(exported_symbol) => {
+                    if symbol == exported_symbol {
+                        break;
+                    }
+                }
+                Export::AllFrom(new_from) => {
+                    let module = modules
+                        .get(new_from)
+                        .unwrap_or_else(|| panic!("Couldnt find {new_from:?}"));
+
+                    if module.exports_symbol(symbol.as_ref()) {
+                        resolved.insert((Symbol::Symbol(symbol.to_owned()), new_from.to_owned()));
+                    }
+                    resolved.extend(try_follow_reexports(symbol, new_from, modules));
+                }
+                Export::Default => {}
+            }
+        }
+    }
+
+    resolved
 }
 
 #[cfg(test)]

@@ -7,6 +7,7 @@ use serde::Deserialize;
 #[serde(rename_all = "camelCase")]
 pub struct PackageJson {
     pub name: String,
+    pub types: Option<String>,
     pub workspaces: Option<Vec<String>>,
 }
 

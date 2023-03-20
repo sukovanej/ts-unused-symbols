@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use crate::package_json::{try_load_package_json, PackageJson};
 use crate::tsconfig::{try_load_tsconfig, TsConfig};
 
-pub type MonorepoImportMapping = HashMap<String, PathBuf>;
+pub type MonorepoImportMapping = HashMap<String, Package>;
 
 #[derive(Debug, Clone)]
 pub struct AnalyzePlan {
@@ -61,7 +61,7 @@ fn create_monorepo_import_mapping(packages: &[Package]) -> MonorepoImportMapping
     let mut mapping = HashMap::new();
 
     for package in packages {
-        let item = mapping.insert(package.package_json.name.clone(), package.path.clone());
+        let item = mapping.insert(package.package_json.name.clone(), package.clone());
 
         if item.is_some() {
             panic!("Package {package:?} occured two times");

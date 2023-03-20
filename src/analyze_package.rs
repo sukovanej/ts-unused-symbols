@@ -8,7 +8,7 @@ use regex::Regex;
 use crate::analyze_file::analyze_file;
 use crate::analyze_plan::MonorepoImportMapping;
 use crate::analyzed_module::AnalyzedModule;
-use crate::module_symbols::{Export, ImportedSymbol, ModuleSymbols, Reexport};
+use crate::module_symbols::{Export, ImportedSymbol, ModuleSymbols};
 use crate::resolve_import_path::resolve_import_path;
 use crate::tsconfig::TsConfig;
 
@@ -93,14 +93,6 @@ fn analyze_module_with_path_resolve(
                         monorepo_import_mapping,
                     )
                     .map(Export::AllFrom),
-                    Export::Reexport(e) => resolve_import_path(
-                        path,
-                        &e.from,
-                        tsconfig,
-                        package_path,
-                        monorepo_import_mapping,
-                    )
-                    .map(|from| Export::Reexport(Reexport { from })),
                 })
                 .collect(),
             imports: analyzed_file

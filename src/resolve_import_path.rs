@@ -1,6 +1,11 @@
-use std::{path::{Path, PathBuf}, collections::VecDeque};
+use std::{
+    collections::VecDeque,
+    path::{Path, PathBuf},
+};
 
-use crate::{tsconfig::TsConfig, analyze_plan::MonorepoImportMapping};
+use crate::{
+    analyze_plan::MonorepoImportMapping, source_map::try_load_source_map, tsconfig::TsConfig,
+};
 
 pub fn resolve_import_path(
     current_path: &Path,
@@ -9,18 +14,8 @@ pub fn resolve_import_path(
     package_base_path: &Path,
     monorepo_import_mapping: &MonorepoImportMapping,
 ) -> Option<PathBuf> {
-    for (monorepo_name, package_path) in monorepo_import_mapping.iter() {
-        if monorepo_name == import_str {
-            let mut path = package_path.to_owned();
-            path.push(PathBuf::from(import_str[monorepo_name.len()..].to_owned()));
-            return Some(path);
-        }
-
-        if import_str.starts_with(monorepo_name) {
-            let mut path = package_path.to_owned();
-            path.push(PathBuf::from(import_str[monorepo_name.len()..].to_owned()));
-            return Some(path);
-        }
+    if let Some(path) = try_resolve_as_monorepo_package(import_str, monorepo_import_mapping) {
+        return Some(path);
     }
 
     let mut path = current_path.to_owned();
@@ -63,4 +58,53 @@ pub fn resolve_import_path(
             current_path.to_str().unwrap()
         )
     }))
+}
+
+/// This one needs a shit ton of refactoring
+///
+/// The idea is to try matching against a package name in the monorepo,
+/// checking the package.json types field to find the imported file,
+/// find corresponding .map file and parse source file from it.
+fn try_resolve_as_monorepo_package(
+    import_str: &str,
+    monorepo_import_mapping: &MonorepoImportMapping,
+) -> Option<PathBuf> {
+    for (path, package) in monorepo_import_mapping.iter() {
+        if !import_str.starts_with(path) {
+            continue;
+        }
+
+        let mut final_path = package.path.to_owned();
+
+        if import_str == path {
+            let types = package.package_json.types.to_owned().unwrap();
+            final_path.push(format!("{types}.map"));
+        } else {
+            let mut rest_path = &import_str[package.package_json.name.len()..];
+
+            if rest_path.starts_with('/') {
+                rest_path = &rest_path[1..];
+            }
+            final_path.push(format!("{rest_path}.d.ts.map"));
+        }
+
+        if let Some(source_map) = try_load_source_map(&final_path) {
+            if source_map.sources.len() != 1 {
+                panic!("Unexpected source {:?}", source_map.sources);
+            }
+
+            final_path.pop();
+            final_path.push(&source_map.sources[0]);
+        }
+
+        final_path = final_path.canonicalize().unwrap();
+
+        if !final_path.exists() {
+            panic!("Path {final_path:?} doesnt exist");
+        }
+
+        return Some(final_path);
+    }
+
+    None
 }
