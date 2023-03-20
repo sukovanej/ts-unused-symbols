@@ -58,7 +58,7 @@ fn main() {
                 &package.path,
                 &package.tsconfig,
                 &options,
-                &analyze_plan.monorepo_import_mapping,
+                &analyze_plan.packages,
             )
         })
         .collect::<Vec<AnalyzedPackage>>();

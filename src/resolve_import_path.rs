@@ -3,18 +3,18 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::{
-    analyze_plan::MonorepoImportMapping, source_map::try_load_source_map, tsconfig::TsConfig,
-};
+use crate::analyze_plan::Package;
+use crate::source_map::try_load_source_map;
+use crate::tsconfig::TsConfig;
 
 pub fn resolve_import_path(
     current_path: &Path,
     import_str: &str,
     tsconfig: &Option<TsConfig>,
     package_base_path: &Path,
-    monorepo_import_mapping: &MonorepoImportMapping,
+    packages: &[Package],
 ) -> Option<PathBuf> {
-    if let Some(path) = try_resolve_as_monorepo_package(import_str, monorepo_import_mapping) {
+    if let Some(path) = try_resolve_as_monorepo_package(import_str, packages) {
         return Some(path);
     }
 
@@ -65,18 +65,16 @@ pub fn resolve_import_path(
 /// The idea is to try matching against a package name in the monorepo,
 /// checking the package.json types field to find the imported file,
 /// find corresponding .map file and parse source file from it.
-fn try_resolve_as_monorepo_package(
-    import_str: &str,
-    monorepo_import_mapping: &MonorepoImportMapping,
-) -> Option<PathBuf> {
-    for (path, package) in monorepo_import_mapping.iter() {
-        if !import_str.starts_with(path) {
+fn try_resolve_as_monorepo_package(import_str: &str, packages: &[Package]) -> Option<PathBuf> {
+    for package in packages.iter() {
+        let package_name = &package.package_json.name;
+        if !import_str.starts_with(package_name) {
             continue;
         }
 
         let mut final_path = package.path.to_owned();
 
-        if import_str == path {
+        if import_str == package_name {
             let types = package.package_json.types.to_owned().unwrap();
             final_path.push(format!("{types}.map"));
         } else {

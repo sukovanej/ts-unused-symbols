@@ -1,25 +1,17 @@
-use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::package_json::{try_load_package_json, PackageJson};
 use crate::tsconfig::{try_load_tsconfig, TsConfig};
 
-pub type MonorepoImportMapping = HashMap<String, Package>;
-
 #[derive(Debug, Clone)]
 pub struct AnalyzePlan {
-    // package name to path map
     pub packages: Vec<Package>,
-    pub monorepo_import_mapping: MonorepoImportMapping,
 }
 
 impl AnalyzePlan {
-    pub fn new(packages: Vec<Package>, monorepo_import_mapping: MonorepoImportMapping) -> Self {
-        Self {
-            packages,
-            monorepo_import_mapping,
-        }
+    pub fn new(packages: Vec<Package>) -> Self {
+        Self { packages }
     }
 }
 
@@ -53,22 +45,7 @@ pub fn prepare_analyze_plan(path: &Path) -> AnalyzePlan {
         packages = vec![Package::new(path, package_json, tsconfig)];
     }
 
-    let monorepo_import_mapping = create_monorepo_import_mapping(&packages);
-    AnalyzePlan::new(packages, monorepo_import_mapping)
-}
-
-fn create_monorepo_import_mapping(packages: &[Package]) -> MonorepoImportMapping {
-    let mut mapping = HashMap::new();
-
-    for package in packages {
-        let item = mapping.insert(package.package_json.name.clone(), package.clone());
-
-        if item.is_some() {
-            panic!("Package {package:?} occured two times");
-        }
-    }
-
-    mapping
+    AnalyzePlan::new(packages)
 }
 
 fn find_packages(path: &Path, wildcard: &str) -> Vec<Package> {

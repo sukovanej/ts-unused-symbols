@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use regex::Regex;
 
 use crate::analyze_file::analyze_file;
-use crate::analyze_plan::MonorepoImportMapping;
+use crate::analyze_plan::Package;
 use crate::analyzed_module::AnalyzedModule;
 use crate::module_symbols::{Export, ImportedSymbol, ModuleSymbols};
 use crate::resolve_import_path::resolve_import_path;
@@ -37,7 +37,7 @@ pub fn analyze_package(
     path: &Path,
     tsconfig: &Option<TsConfig>,
     options: &AnalyzeOptions,
-    monorepo_import_mapping: &MonorepoImportMapping,
+    packages: &[Package],
 ) -> AnalyzedPackage {
     let build_path = tsconfig
         .clone()
@@ -55,7 +55,7 @@ pub fn analyze_package(
         .map(|p| {
             (
                 p.to_owned(),
-                analyze_module_with_path_resolve(&p, tsconfig, path, monorepo_import_mapping),
+                analyze_module_with_path_resolve(&p, tsconfig, path, packages),
             )
         })
         .collect();
@@ -70,7 +70,7 @@ fn analyze_module_with_path_resolve(
     path: &Path,
     tsconfig: &Option<TsConfig>,
     package_path: &Path,
-    monorepo_import_mapping: &MonorepoImportMapping,
+    packages: &[Package],
 ) -> AnalyzedModule<PathBuf> {
     let analyzed_file = analyze_file(path);
 
@@ -85,14 +85,10 @@ fn analyze_module_with_path_resolve(
                 .filter_map(|export| match export {
                     Export::Default => Some(Export::Default),
                     Export::Symbol(s) => Some(Export::Symbol(s.to_owned())),
-                    Export::AllFrom(s) => resolve_import_path(
-                        path,
-                        s,
-                        tsconfig,
-                        package_path,
-                        monorepo_import_mapping,
-                    )
-                    .map(Export::AllFrom),
+                    Export::AllFrom(s) => {
+                        resolve_import_path(path, s, tsconfig, package_path, packages)
+                            .map(Export::AllFrom)
+                    }
                 })
                 .collect(),
             imports: analyzed_file
@@ -100,17 +96,12 @@ fn analyze_module_with_path_resolve(
                 .imports
                 .iter()
                 .filter_map(|import| {
-                    resolve_import_path(
-                        path,
-                        &import.from,
-                        tsconfig,
-                        package_path,
-                        monorepo_import_mapping,
+                    resolve_import_path(path, &import.from, tsconfig, package_path, packages).map(
+                        |from| ImportedSymbol {
+                            symbols: import.symbols.clone(),
+                            from,
+                        },
                     )
-                    .map(|from| ImportedSymbol {
-                        symbols: import.symbols.clone(),
-                        from,
-                    })
                 })
                 .collect(),
         },
@@ -179,7 +170,7 @@ mod tests {
             &PathBuf::from("./tests/namespace-imports/"),
             &Default::default(),
             &Default::default(),
-            &Default::default(),
+            Default::default(),
         );
         assert_eq!(analyzed_module.modules.len(), 2);
 

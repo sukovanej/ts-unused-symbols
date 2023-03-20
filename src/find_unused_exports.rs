@@ -166,7 +166,7 @@ mod tests {
             &PathBuf::from("./tests/relative-imports/"),
             &Default::default(),
             &Default::default(),
-            &Default::default(),
+            Default::default(),
         );
         let unused_exports = find_unused_exports(&vec![analyzed_package]);
         assert_eq!(unused_exports.len(), 0);
@@ -178,7 +178,7 @@ mod tests {
             &PathBuf::from("./tests/reexported-symbols/"),
             &Default::default(),
             &Default::default(),
-            &Default::default(),
+            Default::default(),
         );
         let unused_exports = find_unused_exports(&vec![analyzed_package]);
         assert_eq!(unused_exports.len(), 0);
@@ -190,7 +190,7 @@ mod tests {
             &PathBuf::from("./tests/namespace-imports/"),
             &Default::default(),
             &Default::default(),
-            &Default::default(),
+            Default::default(),
         );
         let unused_exports = find_unused_exports(&vec![analyzed_package]);
         assert_eq!(unused_exports.len(), 0);
@@ -202,7 +202,7 @@ mod tests {
             &PathBuf::from("./tests/default-imports/"),
             &Default::default(),
             &Default::default(),
-            &Default::default(),
+            Default::default(),
         );
         assert_eq!(analyzed_package.modules.len(), 2);
 
