@@ -37,16 +37,16 @@ fn main() {
     let args = Args::parse();
     let path = PathBuf::from(args.path);
 
-    let mut exclude_patterns: Vec<Regex> = vec!["node_modules"]
-        .iter()
-        .map(|e| Regex::new(e).unwrap())
-        .collect();
-    exclude_patterns.extend(args.exclude_patterns.iter().map(|p| Regex::new(p).unwrap()));
+    let mut exclude_patterns = vec!["node_modules".to_string()];
+    exclude_patterns.extend(args.exclude_patterns);
 
-    let mut ignore_patterns = vec![Regex::new("node_modules").unwrap()];
-    ignore_patterns.extend(args.ignore_patterns.iter().map(|p| Regex::new(p).unwrap()));
+    let mut ignore_patterns = vec!["node_modules".to_string()];
+    ignore_patterns.extend(args.ignore_patterns);
 
-    let options = AnalyzeOptions::new(ignore_patterns, exclude_patterns);
+    let options = AnalyzeOptions::new(
+        parse_regex_item(ignore_patterns.into_iter()),
+        parse_regex_item(exclude_patterns.into_iter()),
+    );
 
     let analyze_plan = prepare_analyze_plan(&path);
 
@@ -77,6 +77,10 @@ fn main() {
     println!(" - {} unused exports", final_unused_exports.len());
     println!(" - {number_of_ignored} unused exports ignored in the report",);
     println!(" - {number_of_files} files analyzed");
+}
+
+fn parse_regex_item<I: Iterator<Item = String>>(i: I) -> Vec<Regex> {
+    i.map(|p| Regex::new(&p).unwrap()).collect()
 }
 
 fn filter_ignored(unused_exports: &[UnusedExport], ignore_patterns: &[Regex]) -> Vec<UnusedExport> {
