@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -16,6 +16,7 @@ use crate::tsconfig::TsConfig;
 pub struct AnalyzedPackage {
     pub path: PathBuf,
     pub modules: HashMap<PathBuf, AnalyzedModule<PathBuf>>,
+    pub unresolved_paths: HashSet<String>,
 }
 
 #[derive(Debug, Default)]
@@ -49,13 +50,21 @@ pub fn analyze_package(
             path.canonicalize().unwrap()
         });
 
+    let mut unresolved_paths = HashSet::new();
+
     let paths = traverse_path(path, &options.exclude_patterns, &build_path);
     let modules = paths
         .into_iter()
         .map(|p| {
             (
                 p.to_owned(),
-                analyze_module_with_path_resolve(&p, tsconfig, path, packages),
+                analyze_module_with_path_resolve(
+                    &p,
+                    tsconfig,
+                    path,
+                    packages,
+                    &mut unresolved_paths,
+                ),
             )
         })
         .collect();
@@ -63,6 +72,7 @@ pub fn analyze_package(
     AnalyzedPackage {
         path: path.to_owned(),
         modules,
+        unresolved_paths,
     }
 }
 
@@ -71,39 +81,55 @@ fn analyze_module_with_path_resolve(
     tsconfig: &Option<TsConfig>,
     package_path: &Path,
     packages: &[Package],
+    unresolved_paths: &mut HashSet<String>,
 ) -> AnalyzedModule<PathBuf> {
     let analyzed_file = analyze_file(path);
+
+    let exports = analyzed_file
+        .symbols
+        .exports
+        .iter()
+        .filter_map(|export| match export {
+            Export::Default => Some(Export::Default),
+            Export::Symbol(s) => Some(Export::Symbol(s.to_owned())),
+            Export::AllFrom(s) => {
+                let resolved_import_path =
+                    resolve_import_path(path, s, tsconfig, package_path, packages);
+
+                if resolved_import_path.is_none() {
+                    unresolved_paths.insert(s.to_owned());
+                }
+
+                resolved_import_path.map(Export::AllFrom)
+            }
+        })
+        .collect();
+
+    let imports = analyzed_file
+        .symbols
+        .imports
+        .iter()
+        .filter_map(|import| {
+            let resolved_import_path =
+                resolve_import_path(path, &import.from, tsconfig, package_path, packages);
+
+            if resolved_import_path.is_none() {
+                unresolved_paths.insert(import.from.to_owned());
+            }
+
+            resolved_import_path.map(|from| ImportedSymbol {
+                symbols: import.symbols.clone(),
+                from,
+            })
+        })
+        .collect();
 
     AnalyzedModule {
         path: path.canonicalize().unwrap(),
         symbols: ModuleSymbols {
             usages: analyzed_file.symbols.usages,
-            exports: analyzed_file
-                .symbols
-                .exports
-                .iter()
-                .filter_map(|export| match export {
-                    Export::Default => Some(Export::Default),
-                    Export::Symbol(s) => Some(Export::Symbol(s.to_owned())),
-                    Export::AllFrom(s) => {
-                        resolve_import_path(path, s, tsconfig, package_path, packages)
-                            .map(Export::AllFrom)
-                    }
-                })
-                .collect(),
-            imports: analyzed_file
-                .symbols
-                .imports
-                .iter()
-                .filter_map(|import| {
-                    resolve_import_path(path, &import.from, tsconfig, package_path, packages).map(
-                        |from| ImportedSymbol {
-                            symbols: import.symbols.clone(),
-                            from,
-                        },
-                    )
-                })
-                .collect(),
+            exports,
+            imports,
         },
     }
 }

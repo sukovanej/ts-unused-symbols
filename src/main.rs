@@ -10,6 +10,8 @@ mod resolve_import_path;
 mod source_map;
 mod tsconfig;
 
+use std::collections::HashSet;
+use std::env::current_dir;
 use std::{collections::HashMap, path::PathBuf};
 
 use clap::Parser;
@@ -23,19 +25,25 @@ use crate::find_unused_exports::{find_unused_exports, Symbol};
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    #[arg(short, long)]
-    path: String,
+    path: Option<String>,
 
     #[arg(short, long, help = "Include into analysis but ignore unused symbols")]
     ignore_patterns: Vec<String>,
 
     #[arg(short, long, help = "Completely exclude from the analysis")]
     exclude_patterns: Vec<String>,
+
+    #[arg(short, long, help = "Shows unresolved paths")]
+    verbose: bool,
 }
 
 fn main() {
     let args = Args::parse();
-    let path = PathBuf::from(args.path);
+
+    let path = args
+        .path
+        .map(|p| PathBuf::from(p))
+        .unwrap_or_else(|| current_dir().unwrap());
 
     let mut exclude_patterns = vec!["node_modules".to_string()];
     exclude_patterns.extend(args.exclude_patterns);
@@ -77,6 +85,16 @@ fn main() {
     println!(" - {} unused exports", final_unused_exports.len());
     println!(" - {number_of_ignored} unused exports ignored in the report",);
     println!(" - {number_of_files} files analyzed");
+
+    if args.verbose {
+        let unresolved_paths = analyzed_packages
+            .iter()
+            .flat_map(|p| p.unresolved_paths.clone())
+            .collect::<HashSet<String>>();
+
+        println!();
+        print_unresolved_paths(&unresolved_paths);
+    }
 }
 
 fn parse_regex_item<I: Iterator<Item = String>>(i: I) -> Vec<Regex> {
@@ -139,4 +157,12 @@ fn group_by_path(unused_exports: &[UnusedExport]) -> HashMap<PathBuf, Vec<Unused
     }
 
     result
+}
+
+fn print_unresolved_paths(unresolved_paths: &HashSet<String>) {
+    println!("Unresolved paths");
+
+    for path in unresolved_paths {
+        println!(" - {path:?}");
+    }
 }
