@@ -43,8 +43,8 @@ fn main() -> Result<()> {
 
     let path = args
         .path
-        .map(PathBuf::from)
-        .unwrap_or(current_dir().context("Couldnt get current directory")?);
+        .map(|p| Ok(PathBuf::from(p)))
+        .unwrap_or_else(|| current_dir().context("Couldnt get current directory"))?;
 
     let mut exclude_patterns = vec!["node_modules".to_string()];
     exclude_patterns.extend(args.exclude_patterns);
