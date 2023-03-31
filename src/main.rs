@@ -26,10 +26,10 @@ struct Args {
     #[arg(short, long)]
     path: String,
 
-    #[arg(short, long)]
+    #[arg(short, long, help = "Include into analysis but ignore unused symbols")]
     ignore_patterns: Vec<String>,
 
-    #[arg(short, long)]
+    #[arg(short, long, help = "Completely exclude from the analysis")]
     exclude_patterns: Vec<String>,
 }
 
