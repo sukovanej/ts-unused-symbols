@@ -3,6 +3,7 @@ use std::fmt::Debug;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use anyhow::Result;
 use regex::Regex;
 
 use crate::analyze_file::analyze_file;
@@ -39,7 +40,7 @@ pub fn analyze_package(
     tsconfig: &Option<TsConfig>,
     options: &AnalyzeOptions,
     packages: &[Package],
-) -> AnalyzedPackage {
+) -> Result<AnalyzedPackage> {
     let build_path = tsconfig
         .clone()
         .and_then(|c| c.compiler_options)
@@ -56,24 +57,16 @@ pub fn analyze_package(
     let modules = paths
         .into_iter()
         .map(|p| {
-            (
-                p.to_owned(),
-                analyze_module_with_path_resolve(
-                    &p,
-                    tsconfig,
-                    path,
-                    packages,
-                    &mut unresolved_paths,
-                ),
-            )
+            analyze_module_with_path_resolve(&p, tsconfig, path, packages, &mut unresolved_paths)
+                .map(|m| (p.to_owned(), m))
         })
-        .collect();
+        .collect::<Result<_>>()?;
 
-    AnalyzedPackage {
+    Ok(AnalyzedPackage {
         path: path.to_owned(),
         modules,
         unresolved_paths,
-    }
+    })
 }
 
 fn analyze_module_with_path_resolve(
@@ -82,56 +75,64 @@ fn analyze_module_with_path_resolve(
     package_path: &Path,
     packages: &[Package],
     unresolved_paths: &mut HashSet<String>,
-) -> AnalyzedModule<PathBuf> {
+) -> Result<AnalyzedModule<PathBuf>> {
     let analyzed_file = analyze_file(path);
 
     let exports = analyzed_file
         .symbols
         .exports
         .iter()
-        .filter_map(|export| match export {
-            Export::Default => Some(Export::Default),
-            Export::Symbol(s) => Some(Export::Symbol(s.to_owned())),
+        .map(|export| match export {
+            Export::Default => Ok(Some(Export::Default)),
+            Export::Symbol(s) => Ok(Some(Export::Symbol(s.to_owned()))),
             Export::AllFrom(s) => {
                 let resolved_import_path =
                     resolve_import_path(path, s, tsconfig, package_path, packages);
 
-                if resolved_import_path.is_none() {
+                if resolved_import_path.as_ref().unwrap_or(&None).is_none() {
                     unresolved_paths.insert(s.to_owned());
                 }
 
-                resolved_import_path.map(Export::AllFrom)
+                resolved_import_path.map(|i| i.map(Export::AllFrom))
             }
         })
+        .collect::<Result<Vec<_>>>()?
+        .into_iter()
+        .flatten()
         .collect();
 
     let imports = analyzed_file
         .symbols
         .imports
         .iter()
-        .filter_map(|import| {
+        .map(|import| {
             let resolved_import_path =
                 resolve_import_path(path, &import.from, tsconfig, package_path, packages);
 
-            if resolved_import_path.is_none() {
+            if resolved_import_path.as_ref().unwrap_or(&None).is_none() {
                 unresolved_paths.insert(import.from.to_owned());
             }
 
-            resolved_import_path.map(|from| ImportedSymbol {
-                symbols: import.symbols.clone(),
-                from,
+            resolved_import_path.map(|from| {
+                from.map(|from| ImportedSymbol {
+                    symbols: import.symbols.clone(),
+                    from,
+                })
             })
         })
+        .collect::<Result<Vec<_>>>()?
+        .into_iter()
+        .flatten()
         .collect();
 
-    AnalyzedModule {
+    Ok(AnalyzedModule {
         path: path.canonicalize().unwrap(),
         symbols: ModuleSymbols {
             usages: analyzed_file.symbols.usages,
             exports,
             imports,
         },
-    }
+    })
 }
 
 fn traverse_path(
@@ -185,19 +186,21 @@ fn traverse_path(
 mod tests {
     use std::{collections::HashSet, path::PathBuf};
 
+    use anyhow::Result;
+
     use crate::{
         analyze_package::analyze_package,
         module_symbols::{Import, ImportedSymbol},
     };
 
     #[test]
-    fn namespace_imports() {
+    fn namespace_imports() -> Result<()> {
         let analyzed_module = analyze_package(
             &PathBuf::from("./tests/namespace-imports/"),
             &Default::default(),
             &Default::default(),
             Default::default(),
-        );
+        )?;
         assert_eq!(analyzed_module.modules.len(), 2);
 
         let module =
@@ -214,5 +217,7 @@ mod tests {
                 symbols: vec![Import::Namespace("A".to_string())]
             }])
         );
+
+        Ok(())
     }
 }

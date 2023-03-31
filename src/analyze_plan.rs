@@ -1,6 +1,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use anyhow::{Context, Result};
+
 use crate::package_json::{try_load_package_json, PackageJson};
 use crate::tsconfig::{try_load_tsconfig, TsConfig};
 
@@ -32,8 +34,9 @@ impl Package {
     }
 }
 
-pub fn prepare_analyze_plan(path: &Path) -> AnalyzePlan {
-    let package_json = try_load_package_json(path).unwrap();
+pub fn prepare_analyze_plan(path: &Path) -> Result<AnalyzePlan> {
+    let package_json = try_load_package_json(path)
+        .with_context(|| format!("package.json in {:?} not found", path))?;
     let mut packages = vec![];
 
     if let Some(monorepo_packages) = package_json.workspaces {
@@ -45,7 +48,7 @@ pub fn prepare_analyze_plan(path: &Path) -> AnalyzePlan {
         packages = vec![Package::new(path, package_json, tsconfig)];
     }
 
-    AnalyzePlan::new(packages)
+    Ok(AnalyzePlan::new(packages))
 }
 
 fn find_packages(path: &Path, wildcard: &str) -> Vec<Package> {

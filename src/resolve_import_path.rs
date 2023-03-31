@@ -1,7 +1,7 @@
-use std::{
-    collections::VecDeque,
-    path::{Path, PathBuf},
-};
+use anyhow::{Context, Result};
+
+use std::collections::VecDeque;
+use std::path::{Path, PathBuf};
 
 use crate::analyze_plan::Package;
 use crate::source_map::try_load_source_map;
@@ -13,9 +13,9 @@ pub fn resolve_import_path(
     tsconfig: &Option<TsConfig>,
     package_base_path: &Path,
     packages: &[Package],
-) -> Option<PathBuf> {
-    if let Some(path) = try_resolve_as_monorepo_package(import_str, packages) {
-        return Some(path);
+) -> Result<Option<PathBuf>> {
+    if let Some(path) = try_resolve_as_monorepo_package(import_str, packages)? {
+        return Ok(Some(path));
     }
 
     let mut path = current_path.to_owned();
@@ -40,24 +40,29 @@ pub fn resolve_import_path(
     }
 
     let mut possible_extensions = VecDeque::from(["ts", "tsx", "js", "jsx", "mjs", "mts"]);
-    let filename = path.file_name().unwrap().to_str().unwrap().to_owned();
+    let filename = path
+        .file_name()
+        .context("Could not resolve file name")?
+        .to_str()
+        .context("Could not resolve file name")?
+        .to_owned();
 
-    while !path.exists() && !possible_extensions.is_empty() {
-        let extension = possible_extensions.pop_front().unwrap();
-        path.set_file_name(format!("{filename}.{extension}"));
+    while !path.exists() {
+        if let Some(extension) = possible_extensions.pop_front() {
+            let extension = extension;
+            path.set_file_name(format!("{filename}.{extension}"));
+        } else {
+            break;
+        }
     }
 
     if !path.exists() {
-        return None;
+        return Ok(None);
     }
 
-    Some(path.canonicalize().unwrap_or_else(|_| {
-        panic!(
-            "Failed to resolve {} in {}",
-            import_str.to_owned(),
-            current_path.to_str().unwrap()
-        )
-    }))
+    Ok(Some(path.canonicalize().with_context(|| {
+        format!("Failed to resolve {} in {filename}", import_str.to_owned())
+    })?))
 }
 
 /// This one needs a shit ton of refactoring
@@ -65,7 +70,10 @@ pub fn resolve_import_path(
 /// The idea is to try matching against a package name in the monorepo,
 /// checking the package.json types field to find the imported file,
 /// find corresponding .map file and parse source file from it.
-fn try_resolve_as_monorepo_package(import_str: &str, packages: &[Package]) -> Option<PathBuf> {
+fn try_resolve_as_monorepo_package(
+    import_str: &str,
+    packages: &[Package],
+) -> Result<Option<PathBuf>> {
     for package in packages.iter() {
         let package_name = &package.package_json.name;
         if !import_str.starts_with(package_name) {
@@ -75,7 +83,7 @@ fn try_resolve_as_monorepo_package(import_str: &str, packages: &[Package]) -> Op
         let mut final_path = package.path.to_owned();
 
         if import_str == package_name {
-            let types = package.package_json.types.to_owned().unwrap();
+            let types = package.package_json.types.to_owned().context("")?;
             final_path.push(format!("{types}.map"));
         } else {
             let mut rest_path = &import_str[package.package_json.name.len()..];
@@ -101,8 +109,8 @@ fn try_resolve_as_monorepo_package(import_str: &str, packages: &[Package]) -> Op
             panic!("Path {final_path:?} doesnt exist");
         }
 
-        return Some(final_path);
+        return Ok(Some(final_path));
     }
 
-    None
+    Ok(None)
 }

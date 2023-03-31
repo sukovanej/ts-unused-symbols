@@ -14,6 +14,7 @@ use std::collections::HashSet;
 use std::env::current_dir;
 use std::{collections::HashMap, path::PathBuf};
 
+use anyhow::{Context, Result};
 use clap::Parser;
 use find_unused_exports::UnusedExport;
 use regex::Regex;
@@ -37,13 +38,13 @@ struct Args {
     verbose: bool,
 }
 
-fn main() {
+fn main() -> Result<()> {
     let args = Args::parse();
 
     let path = args
         .path
-        .map(|p| PathBuf::from(p))
-        .unwrap_or_else(|| current_dir().unwrap());
+        .map(PathBuf::from)
+        .unwrap_or(current_dir().context("Couldnt get current directory")?);
 
     let mut exclude_patterns = vec!["node_modules".to_string()];
     exclude_patterns.extend(args.exclude_patterns);
@@ -52,11 +53,11 @@ fn main() {
     ignore_patterns.extend(args.ignore_patterns);
 
     let options = AnalyzeOptions::new(
-        parse_regex_item(ignore_patterns.into_iter()),
-        parse_regex_item(exclude_patterns.into_iter()),
+        parse_regex_item(ignore_patterns.into_iter())?,
+        parse_regex_item(exclude_patterns.into_iter())?,
     );
 
-    let analyze_plan = prepare_analyze_plan(&path);
+    let analyze_plan = prepare_analyze_plan(&path)?;
 
     let analyzed_packages = analyze_plan
         .packages
@@ -69,7 +70,7 @@ fn main() {
                 &analyze_plan.packages,
             )
         })
-        .collect::<Vec<AnalyzedPackage>>();
+        .collect::<Result<Vec<AnalyzedPackage>>>()?;
 
     let unused_exports = find_unused_exports(&analyzed_packages);
     let final_unused_exports = filter_ignored(&unused_exports, &options.ignore_patterns);
@@ -95,10 +96,13 @@ fn main() {
         println!();
         print_unresolved_paths(&unresolved_paths);
     }
+
+    Ok(())
 }
 
-fn parse_regex_item<I: Iterator<Item = String>>(i: I) -> Vec<Regex> {
-    i.map(|p| Regex::new(&p).unwrap()).collect()
+fn parse_regex_item<I: Iterator<Item = String>>(i: I) -> Result<Vec<Regex>> {
+    i.map(|p| Regex::new(&p).with_context(|| format!("Failed to parse regex {p}")))
+        .collect()
 }
 
 fn filter_ignored(unused_exports: &[UnusedExport], ignore_patterns: &[Regex]) -> Vec<UnusedExport> {
@@ -143,17 +147,10 @@ fn group_by_path(unused_exports: &[UnusedExport]) -> HashMap<PathBuf, Vec<Unused
     let mut result = HashMap::new();
 
     for unused_export in unused_exports {
-        if !result.contains_key(&unused_export.filename) {
-            result.insert(
-                unused_export.filename.to_owned(),
-                vec![unused_export.to_owned()],
-            );
-        } else {
-            result
-                .get_mut(&unused_export.filename)
-                .unwrap()
-                .push(unused_export.to_owned());
-        }
+        result
+            .get_mut(&unused_export.filename)
+            .get_or_insert(&mut Vec::new())
+            .push(unused_export.to_owned());
     }
 
     result
