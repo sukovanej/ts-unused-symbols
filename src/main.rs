@@ -144,13 +144,20 @@ fn print_unsed_exports(unused_exports: &[UnusedExport]) {
 }
 
 fn group_by_path(unused_exports: &[UnusedExport]) -> HashMap<PathBuf, Vec<UnusedExport>> {
-    let mut result = HashMap::new();
+    let mut result: HashMap<PathBuf, Vec<UnusedExport>> = HashMap::new();
 
     for unused_export in unused_exports {
-        result
-            .get_mut(&unused_export.filename)
-            .get_or_insert(&mut Vec::new())
-            .push(unused_export.to_owned());
+        match result.get_mut(&unused_export.filename) {
+            Some(exports) => {
+                exports.push(unused_export.to_owned());
+            }
+            None => {
+                result.insert(
+                    unused_export.filename.clone(),
+                    vec![unused_export.to_owned()],
+                );
+            }
+        }
     }
 
     result
