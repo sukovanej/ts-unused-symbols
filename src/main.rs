@@ -147,17 +147,10 @@ fn group_by_path(unused_exports: &[UnusedExport]) -> HashMap<PathBuf, Vec<Unused
     let mut result: HashMap<PathBuf, Vec<UnusedExport>> = HashMap::new();
 
     for unused_export in unused_exports {
-        match result.get_mut(&unused_export.filename) {
-            Some(exports) => {
-                exports.push(unused_export.to_owned());
-            }
-            None => {
-                result.insert(
-                    unused_export.filename.clone(),
-                    vec![unused_export.to_owned()],
-                );
-            }
-        }
+        result
+            .entry(unused_export.filename.to_owned())
+            .or_insert_with(Vec::new)
+            .push(unused_export.to_owned());
     }
 
     result
