@@ -56,7 +56,11 @@ fn find_packages(path: &Path, wildcard: &str) -> Vec<Package> {
     let mut packages = vec![];
 
     for package_path in package_paths {
-        packages.push(get_package(&package_path));
+        if let Some(package) = get_package(&package_path) {
+            packages.push(package);
+        } else {
+            println!("Package not found in {:?}, skipping...", package_path);
+        }
     }
 
     packages
@@ -85,9 +89,11 @@ fn get_paths_matching_wildcard(path: &Path, wildcard: &str) -> Vec<PathBuf> {
     todo!("{path:?}")
 }
 
-fn get_package(path: &Path) -> Package {
-    let package_json = try_load_package_json(path).unwrap();
-    let tsconfig = try_load_tsconfig(path);
+fn get_package(path: &Path) -> Option<Package> {
+    if let Some(package_json) = try_load_package_json(path) {
+        let tsconfig = try_load_tsconfig(path);
+        return Some(Package::new(path, package_json, tsconfig));
+    }
 
-    Package::new(path, package_json, tsconfig)
+    return None;
 }

@@ -267,6 +267,7 @@ impl SymbolsUsageAnalyzer {
             Decl::TsInterface(_) => HashSet::default(), // TODO
             Decl::TsTypeAlias(_) => HashSet::default(), // TODO
             Decl::TsModule(_) => HashSet::default(),    // TODO
+            Decl::Using(_) => HashSet::default(),       // TODO
         }
     }
 }

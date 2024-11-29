@@ -6,12 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = { version = "4.1.9", features = ["derive"] }
-swc_common = "0.29.37"
-swc_ecma_ast = "0.100.1"
-swc_ecma_parser = { version = "0.130.2", features = ["typescript"] }
+clap = { version = "4.0", features = ["derive"] }
+swc_common = "4.0"
+swc_ecma_ast = "4.0"
+swc_ecma_parser = { version = "5.0", features = ["typescript"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-regex = "1.7.1"
-wildmatch = "2.1.1"
-anyhow = "1.0.70"
+regex = "1.0"
+wildmatch = "2.0"
+anyhow = "1.0"

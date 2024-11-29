@@ -167,8 +167,9 @@ mod tests {
             &Default::default(),
             &Default::default(),
             Default::default(),
-        );
-        let unused_exports = find_unused_exports(&vec![analyzed_package]);
+        )
+        .unwrap();
+        let unused_exports = find_unused_exports(&[analyzed_package]);
         assert_eq!(unused_exports.len(), 0);
     }
 
@@ -179,8 +180,9 @@ mod tests {
             &Default::default(),
             &Default::default(),
             Default::default(),
-        );
-        let unused_exports = find_unused_exports(&vec![analyzed_package]);
+        )
+        .unwrap();
+        let unused_exports = find_unused_exports(&[analyzed_package]);
         assert_eq!(unused_exports.len(), 0);
     }
 
@@ -191,8 +193,9 @@ mod tests {
             &Default::default(),
             &Default::default(),
             Default::default(),
-        );
-        let unused_exports = find_unused_exports(&vec![analyzed_package]);
+        )
+        .unwrap();
+        let unused_exports = find_unused_exports(&[analyzed_package]);
         assert_eq!(unused_exports.len(), 0);
     }
 
@@ -203,10 +206,11 @@ mod tests {
             &Default::default(),
             &Default::default(),
             Default::default(),
-        );
+        )
+        .unwrap();
         assert_eq!(analyzed_package.modules.len(), 2);
 
-        let unused_exports = find_unused_exports(&vec![analyzed_package]);
+        let unused_exports = find_unused_exports(&[analyzed_package]);
         assert_eq!(unused_exports.len(), 0);
     }
 }

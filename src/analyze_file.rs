@@ -7,7 +7,7 @@ use swc_ecma_ast::{
     Decl, ExportSpecifier, Module, ModuleDecl, ModuleExportName, ModuleItem, Pat, TsModuleName,
 };
 use swc_ecma_ast::{EsVersion, ImportSpecifier};
-use swc_ecma_parser::{error::Error, parse_file_as_module, Syntax, TsConfig};
+use swc_ecma_parser::{error::Error, parse_file_as_module, Syntax, TsSyntax};
 
 use crate::analyze_symbols_usage::SymbolsUsageAnalyzer;
 use crate::analyzed_module::AnalyzedModule;
@@ -16,9 +16,9 @@ use crate::module_symbols::{merge_iter, Export, Import, ImportedSymbol, ModuleSy
 pub fn analyze_file(path: &Path) -> AnalyzedModule<String> {
     let cm: Lrc<SourceMap> = Default::default();
     let fm = cm.load_file(path).expect("failed to load test.js");
-    let ts_config = TsConfig {
-        tsx: true, // TODO: decide based on the file extension
-        ..TsConfig::default()
+    let ts_config = TsSyntax {
+        tsx: path.ends_with(".tsx"),
+        ..TsSyntax::default()
     };
 
     let mut recovered_errors: Vec<Error> = Vec::new();
@@ -110,6 +110,7 @@ fn analyze_decl(decl: Decl) -> ModuleSymbols<String> {
             TsModuleName::Str(_) => ModuleSymbols::default(),
             TsModuleName::Ident(i) => ModuleSymbols::new_exported_symbol(i),
         },
+        Decl::Using(_) => todo!("implement Decl::Using"),
     }
 }
 

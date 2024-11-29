@@ -103,7 +103,7 @@ fn try_resolve_as_monorepo_package(
             final_path.push(&source_map.sources[0]);
         }
 
-        final_path = final_path.canonicalize().unwrap();
+        final_path = final_path.canonicalize()?;
 
         if !final_path.exists() {
             panic!("Path {final_path:?} doesnt exist");
